@@ -203,3 +203,39 @@ save_as_docx(
 	, path = 'C:/Users/coreyar/Working_Directory_Projects/Work/221216_Proj-IS/materials/table-4/table-4.docx'
 	, pr_section = pr_sec
 )
+
+#data import - appendix2####
+table.app <- read.table('C:/Users/coreyar/Working_Directory_Code/rstats/221216_Proj-IS/resources/participants.csv', sep = ',', header = T)
+
+colnames(table.app) <- c("Study ID", "Sex", "Age at Scan (Y)", "Group")
+
+ft.app <- flextable(table.app)
+ft.app <- theme_zebra(ft.app
+	, odd_header = '#CFCFCF'
+	, odd_body = '#EFEFEF'
+	, even_header = 'white'
+	, even_body = 'white'
+)
+
+#table-specific formatting####
+
+ft.app <- autofit(ft.app)
+ft.app <- fit_to_width(ft.app, 16.002, unit = 'cm')
+
+ft.app <- ft.app |>
+	paginate(init = TRUE, hdr_ftr = TRUE) |>
+	bold(bold = F, part = 'header') |>
+	fontsize(size = 12, part = 'body') |>
+	set_caption('Individual participant demographics')
+
+save_as_image(
+	ft.app
+	, path = 'C:/Users/coreyar/Working_Directory_Projects/Work/221216_Proj-IS/materials/appendix-2/appendix-2.png'
+	, res = 600
+)
+
+save_as_docx(
+	ft.app
+	, path = 'C:/Users/coreyar/Working_Directory_Projects/Work/221216_Proj-IS/materials/appendix-2/appendix-2.docx'
+	, pr_section = pr_sec
+)
