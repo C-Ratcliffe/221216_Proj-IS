@@ -14,19 +14,17 @@ project <- "is"
 opt.rois <- 179
 
 names.file.list <- list.files(path=folder.in, full.names = T)
-names.methods <- gsub(paste(".*", project, "[_](.*)[_].*[_].*[.].*", sep=""), "\\1", names.file.list[1:length(names.file.list)])
-names.hemi <-gsub(paste(".*", project, "[_].*[_](.*)[_].*[.].*", sep=""), "\\1", names.file.list[1:length(names.file.list)])
-names.features <- gsub(paste(".*", project, "[_].*[_].*[_](.*)[.].*", sep=""), "\\1", names.file.list[1:length(names.file.list)])
+names.meas <-  gsub(".*[/](.*)[.]csv", "\\1", names.file.list[1:length(names.file.list)])
 raw_meas <- lapply(names.file.list, read.delim, header = T, dec = ".", numerals = "no.loss", sep = " ")
 
 for (i in 1:length(raw_meas)){
 	row.names(raw_meas[[i]]) <- region_labels$ints
 	raw_meas[[i]] <- raw_meas[[i]][, c(FALSE, TRUE, FALSE)]
 }
-names(raw_meas) <- paste(names.methods, names.hemi, names.features, sep = "_")
+
+names(raw_meas) <- names.meas
 
 asegvec <-  c(10, 11, 12, 13, 16, 17, 18, 26, 49, 50, 51, 52, 53, 54, 58)
-vent_asegvec <- c(2, 4, 5, 14, 15, 31, 41, 43, 44, 63, asegvec)
 blankmat <- matrix(NA, nrow = 3, ncol = 2, dimnames = list(x = c('all', 'sub', 'cort'), y = c('mean', 'max')))
 
 ## The destrieux atlas is reparcellated to reflect the CC and Cerebellar parcellations used by DL+DiReCT####
@@ -41,16 +39,16 @@ destrieux_base[destrieux_base == 254] <- 130
 destrieux_base[destrieux_base == 255] <- 130
 
 ## A for loop is used to change the intensity of the base atlas to reflect the dice scores of the different modalities####
-for (modality in c('aniso', 'synthsr', 'dldirect', 'dlseg')){
-	rm_ind <- paste(modality, '-da_bi_ovl', sep = '')
-	dice_mat <- (2*(as.matrix(raw_meas[[rm_ind]])))/(as.matrix(raw_meas[[rm_ind]])+as.matrix(raw_meas$'raw-da_bi_vol'))
+for (modality in c('aniso', 'res', 'dldirect', 'synthsr')){
+	rm_ind <- paste(modality, '-ovl', sep = '')
+	dice_mat <- (2*(as.matrix(raw_meas[[rm_ind]])))/(as.matrix(raw_meas[[rm_ind]])+as.matrix(raw_meas$'iso-vol'))
 	dice_means <- rowMeans(dice_mat)
 	parc_ints <- cbind(region_labels[1], dice_means)
-	aseg_ints <- parc_ints[parc_ints[,1] %in% asegvec,]
-	cort_ints <- parc_ints[!(parc_ints[,1] %in% vent_asegvec),]
+	aseg_ints <- parc_ints[1:31, ]
+	cort_ints <- parc_ints[31:178, ]
 	base_atlas <- destrieux_base
 	for (i in 1:nrow(parc_ints)){
-		base_atlas[base_atlas == parc_ints[i,1]] <- parc_ints[i,2]
+		base_atlas[base_atlas == parc_ints[i, 1]] <- parc_ints[i, 2]
 	}
 	base_atlas[base_atlas < min(parc_ints[,2], na.rm = T) | base_atlas > max(parc_ints[,2], na.rm = T)] <- 0
 	base_subatlas <- destrieux_subcort
@@ -58,13 +56,13 @@ for (modality in c('aniso', 'synthsr', 'dldirect', 'dlseg')){
 		base_subatlas[base_subatlas == aseg_ints[i,1]] <- aseg_ints[i,2]
 	}
 	base_subatlas[base_subatlas < min(aseg_ints[,2], na.rm = T) | base_subatlas > max(aseg_ints[,2], na.rm = T)] <- 0
-	cortpath_r <- paste('resources/', modality, '-da_dice.nii.gz', sep = '')
+	cortpath_r <- paste('resources/', modality, '-cort_dice.nii.gz', sep = '')
 	subpath_r <- paste('resources/', modality, '-aseg_dice.nii.gz', sep = '')
-	cortpath_si <- paste('F:/Windows_Programs/Surf_Ice/display_vols/22-is/', modality, '-da_dice.nii.gz', sep = '')
-	subpath_si <- paste('F:/Windows_Programs/Surf_Ice/display_vols/22-is/', modality, '-aseg_dice.nii.gz', sep = '')
-	#writeNifti(base_atlas, cortpath_r)
+	cortpath_si <- paste('C:/Users/coreyar/Windows_Programs/Surf_Ice/display_vols/221216_Proj-IS/', modality, '-cort_dice.nii.gz', sep = '')
+	subpath_si <- paste('C:/Users/coreyar/Windows_Programs/Surf_Ice/display_vols/221216_Proj-IS/', modality, '-aseg_dice.nii.gz', sep = '')
+	writeNifti(base_atlas, cortpath_r)
 	writeNifti(base_atlas, cortpath_si)
-	#writeNifti(base_subatlas, subpath_r)
+	writeNifti(base_subatlas, subpath_r)
 	writeNifti(base_subatlas, subpath_si)
 	dicedesc <- blankmat
 	dicedesc[1,1] <- mean(parc_ints[,2], na.rm = T)
@@ -75,5 +73,5 @@ for (modality in c('aniso', 'synthsr', 'dldirect', 'dlseg')){
 	dicedesc[3,2] <- max(cort_ints[,2], na.rm = T)
 	assign(paste('dicedesc_', modality, sep = ''), dicedesc)
 }
-writeNifti(destrieux_base, 'F:/Windows_Programs/Surf_Ice/display_vols/22-is/raw-da_dice.nii.gz')
-writeNifti(destrieux_subcort, 'F:/Windows_Programs/Surf_Ice/display_vols/22-is/raw-aseg_dice.nii.gz')
+writeNifti(destrieux_base, 'C:/Users/coreyar/Windows_Programs/Surf_Ice/display_vols/221216_Proj-IS/iso-cort_dice.nii.gz')
+writeNifti(destrieux_subcort, 'C:/Users/coreyar/Windows_Programs/Surf_Ice/display_vols/221216_Proj-IS/iso-aseg_dice.nii.gz')

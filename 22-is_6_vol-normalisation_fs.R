@@ -8,15 +8,15 @@ z_table <- list()
 z_avg <- list()
 
 for (i in seq(1, 3)){
-	vals <- na.omit(meas[[i]])
+	vals <- na.omit(meas[[i+6]])
 	colmeans <- colMeans(vals)
 	colsds <- c()
 	for (j in 1:ncol(vals)){
 		colsds[j] <- sqrt((sum((vals[, j] - colmeans[j])^2))/nrow(vals))
 	}
-	sd[[names(meas)[i]]] <- colsds
-	for (k in seq(0, 12, 3)){
-		l <- i+k
+	sd[[names(meas)[i+6]]] <- colsds
+	for (k in c(0, 1, 3, 4)){
+		l <- 3*k + i
 		vals_2 <- na.omit(meas[[l]])
 		zs <- vals_2
 		for (j in 1:ncol(vals_2)){

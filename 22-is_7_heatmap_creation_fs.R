@@ -7,14 +7,14 @@ load("metrics_is.rdata")
 
 destrieux_base <- readNifti("resources/destrieux_cort-dilate.nii")
 
-vol_an <- c(z_avg[['an_vol_sub']], z_avg[['an_vol']])
-vol_dl <- c(z_avg[['dl_vol_sub']], z_avg[['dl_vol']])
-vol_res <- c(z_avg[['res_vol_sub']], z_avg[['res_vol']])
-vol_ssr <- c(z_avg[['ssr_vol_sub']], z_avg[['ssr_vol']])
-thick_an <- z_avg[['an_thick']]
-thick_dl <- z_avg[['dl_thick']]
-thick_res <- z_avg[['res_thick']]
-thick_ssr <- z_avg[['ssr_thick']]
+vol_an <- c(z_avg[['aniso-aseg_volume']], z_avg[['aniso-cort_volume']])
+vol_dl <- c(z_avg[['dldirect-aseg_volume']], z_avg[['dldirect-cort_volume']])
+vol_res <- c(z_avg[['res-aseg_volume']], z_avg[['res-cort_volume']])
+vol_ssr <- c(z_avg[['synthsr-aseg_volume']], z_avg[['synthsr-cort_volume']])
+thick_an <- z_avg[['aniso-cort_thickness']]
+thick_dl <- z_avg[['dldirect-cort_thickness']]
+thick_res <- z_avg[['res-cort_thickness']]
+thick_ssr <- z_avg[['synthsr-cort_thickness']]
 
 destrieux_base[destrieux_base == 7] <- 104
 destrieux_base[destrieux_base == 8] <- 104
@@ -34,7 +34,7 @@ for (i in c('an', 'dl', 'res', 'ssr')){
 		base_atlas <- destrieux_base
 		inmetric <- paste(j, i, sep = '_')
 		outfile_rdir <- paste('resources/', i, '_', j, '-z.nii.gz', sep = '')
-		outfile <- paste('F:/Windows_Programs/Surf_Ice/display_vols/22-is/', i, '_', j, '-z.nii.gz', sep = '')
+		outfile <- paste('C:/Users/coreyar/Windows_Programs/Surf_Ice/display_vols/221216_Proj-IS/', i, '_', j, '-z.nii.gz', sep = '')
 		if (j == 'vol') {
 			parc_ints <- cbind(region_labels[1], eval(parse(text = inmetric)))
 		} else if (j == 'thick') {
@@ -47,6 +47,6 @@ for (i in c('an', 'dl', 'res', 'ssr')){
 		}
 		base_atlas[base_atlas < min(parc_ints[,2], na.rm = T) | base_atlas > max(parc_ints[,2], na.rm = T)] <- 0
 		writeNifti(base_atlas, outfile)
-		#writeNifti(base_atlas, outfile_rdir)
+		writeNifti(base_atlas, outfile_rdir)
 	}
 }

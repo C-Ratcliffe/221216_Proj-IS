@@ -4,7 +4,7 @@ source("22-is_functions.r")
 
 #Importing the demographics####
 
-ptcvars <- read.delim("participants.csv", dec = ".", sep = ",", numerals = "no.loss")
+ptcvars <- read.delim("resources/participants.csv", dec = ".", sep = ",", numerals = "no.loss")
 
 #Integer encoding - unstandardised####
 
@@ -21,10 +21,10 @@ ptc_int_raw[ptc_int_raw == "F"] <- 0
 ##t-contrast
 
 ###controls > PWE
-ptc_int_raw_t-con <- c(-1, 0, 0, 0)
+ptc_int_raw_tcon <- c(-1, 0, 0, 0)
 
 ###PWE > controls
-ptc_int_raw_t-con <- c(1, 0, 0, 0)
+ptc_int_raw_tcon <- c(1, 0, 0, 0)
 
 #Integer encoding - standardised####
 
@@ -40,4 +40,3 @@ ptc_int_sd[ptc_int_sd == "HC"] <- 0
 ptc_int_sd[ptc_int_sd == "F"] <- 0
 ptc_age_sd <- sqrt((sum((ptcvars$Age_at_Scan - mean(ptcvars$Age_at_Scan))^2))/length(ptcvars$Age_at_Scan))
 ptc_int_sd$Age_at_Scan <- (ptcvars$Age_at_Scan - mean(ptcvars$Age_at_Scan))/ptc_age_sd
-

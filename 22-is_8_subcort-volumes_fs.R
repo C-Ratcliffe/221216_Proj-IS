@@ -5,7 +5,7 @@ load("metrics_is.rdata")
 
 #The grouping variables are imported####
 
-ptcvars <- read.delim("participants.csv", dec = ".", sep = ",", numerals = "no.loss")
+ptcvars <- read.delim("resources/participants.csv", dec = ".", sep = ",", numerals = "no.loss")
 ptcage <- t.test(ptcvars$Age_at_Scan ~ ptcvars$IGE)
 ptcsex <- chisq.test(table(ptcvars$IGE, ptcvars$Sex))
 ptcvars[ptcvars == "IGE"] <- 1
@@ -24,7 +24,7 @@ mat_glmsig <- matrix(nrow = 5, ncol = 15)
 #A for loop computes a glm for all of the subcortical volumes####
 
 for (i in seq(1, 5)){
-	k <- i*3
+	k <- (i*3)-2
 	vols <- meas[[k]][c(6:12, 19:25, 27)]
 	for (j in 1:length(vols)){
 		cellname <- paste(names(meas)[k], colnames(vols)[j], sep = '_')
@@ -35,7 +35,7 @@ for (i in seq(1, 5)){
 }
 
 colnames(mat_glmsig) <- colnames(vols)
-rownames(mat_glmsig) <- names(meas)[c(3, 6, 9, 12, 15)]
+rownames(mat_glmsig) <- names(meas)[c(1, 4, 7, 10, 13)]
 
 rm(cellname, i, j, k, glm_ige)
 
