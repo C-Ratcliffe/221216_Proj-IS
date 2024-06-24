@@ -209,6 +209,13 @@ table.app <- read.table('C:/Users/coreyar/Working_Directory_Code/rstats/221216_P
 
 colnames(table.app) <- c("Study ID", "Sex", "Age at Scan (Y)", "Group")
 
+breaks <- seq(15, 70, by=5)
+bins <- c("15-20", "21-25", "26-30", "31-35", "36-40", "41-45", "46-50", "51-55", "56-60", "61-65", "66-70")
+
+# Use cut to create bins
+table.app$"Age at Scan (Y)" <- cut(table.app$"Age at Scan (Y)", breaks = breaks
+	, right = TRUE, labels = bins)
+
 ft.app <- flextable(table.app)
 ft.app <- theme_zebra(ft.app
 	, odd_header = '#CFCFCF'
