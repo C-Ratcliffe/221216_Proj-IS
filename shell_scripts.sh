@@ -1,74 +1,108 @@
-### Preprocessing with DL+DiReCT and SynthSR
+# Preprocessing with DL+DiReCT and SynthSR
 
-#### Environment creation and package installation
+# Environment creation and package installation
 
-conda create -y -n DL_DiReCT python=3.10
-conda activate DL_DiReCT
-cd ${HOME}
-git clone https://github.com/SCAN-NRAD/DL-DiReCT.git
-cd DL-DiReCT
-pip install numpy && pip install -e
+	pyenv install 3.10
+	pyenv local 3.10
+	pyenv exec python3.10 -m venv DL-DiReCT
+	source DL-DiReCT/bin/activate
+	pip install --upgrade pip
+	cd ~/DL-DiReCT
+	git clone https://github.com/SCAN-NRAD/DL-DiReCT.git
+	cd DL-DiReCT
+	pip install numpy && pip install -e .
+	deactivate
+	
+	pyenv exec python3.10 -m venv nibabel
+	source nibabel/bin/activate
+	pip install --upgrade pip
+	cd ~/nibabel
+	pip install git+https://github.com/nipy/nibabel
+	deactivate
 
-conda create -n synthsr python=3.6
-conda activate synthsr
-cd ~/anaconda3/envs/synthsr/lib/synthsr/
-pip install -r requirements.txt
-pip install tensorflow-directml
+# Preparing the environment
 
-#### Preparing the environment
+	studydir=~/Documents/WD_imaging/221216_Proj-IS/
+	rawdir=${studydir}rawdata/
+	derivdir=${studydir}derivatives/
+	rdir=~/Documents/WD_code/221216_Proj-IS/
+	surfdir=/Applications/Surfice
+	declare -a subs=('sub-001' ... 'sub-070')
+	declare -a imgmods=('iso' 'aniso' 'res' 'synthsr')
 
-derivdir=~/studydir/derivatives/
-rdir=~/rstatsdir/
-surfdir=~/surficedir/
-declare -a subs=('sub-001' ... 'sub-070')
-declare -a imgmods=('iso' 'aniso' 'res' 'synthsr')
-
-#### Rename files to encourage homogeneity
+# Rename files to encourage homogeneity
 
 find . -name "*acq-3D_T1w.nii.gz" -exec rename 's/acq-3D_T1w/iso/' {} ";"
 find . -name "*acq-2D_T1w.nii.gz" -exec rename 's/acq-2D_T1w/aniso/' {} ";"
 
-#### Preprocessing
+# Preprocessing
 
-export FREESURFER_HOME=~/freesurfer
-source $FREESURFER_HOME/SetUpFreeSurfer.sh
+export FREESURFER_HOME=~/freesurfer/8.0.0-beta
+source $FREESURFER_HOME/SetUpFreeSurfer.sh	
+
+mkdir \
+	-p \
+	${derivdir}dldir/ \
+	${derivdir}synth/ \
+	${derivdir}aniso/ \
+	${derivdir}iso/ \
+	${derivdir}res/ \
+	${derivdir}clinic_fs/
     
-for sub in ${subs[@]}
-    do
-    conda activate DL_DiReCT
-    dl+direct --model v7 --subject $sub --bet ${derivdir}res/input/${sub}* \
-        ${derivdir}res/${sub} --lowmem --keep --no-cth
-    mv ${derivdir}res/input/${sub}* ${derivdir}res/processed/
-    cp ${derivdir}res/${sub}/T1w_norm.nii.gz ${derivdir}res_freesurfer/input/${sub}_res.nii.gz
-    cp ${derivdir}res/${sub}/T1w_norm.nii.gz ${derivdir}res_fslanat/input/${sub}_res.nii.gz
-    cp ${derivdir}res/${sub}/T1w_norm_noskull.nii.gz ${derivdir}res_dldirect/input/${sub}_res.nii.gz
-    dl+direct --model v7 --subject $sub ${derivdir}res_dldirect/input/${sub}* \
-        ${derivdir}res_dldirect/${sub} --lowmem --keep
-    mv ${derivdir}res_dldirect/input/${sub}* ${derivdir}res_dldirect/processed/
-    conda deactivate
-    conda activate synthsr
-    mkdir -p ${derivdir}synthsr/${sub}/
-    python ~/anaconda3/envs/synthsr/lib/synthsr/scripts/predict_command_line.py \
-        ${derivdir}synthsr/input/${sub}* \
-        ${derivdir}synthsr/${sub}/${sub}_synthsr --cpu
-    mv ${derivdir}synthsr/input/${sub}* ${derivdir}synthsr/processed/
-    cp ${derivdir}synthsr/${sub}/${sub}_synthsr.nii ${derivdir}synthsr_freesurfer/input/
-    cp ${derivdir}synthsr/${sub}/${sub}_synthsr.nii ${derivdir}synthsr_fslanat/input/
-    conda deactivate
+for subpath in ${rawdir}*
+do
+	subname=${subpath##*/rawdata/}
+	sub=${rawdir}${subname}/anat/${subname}
+	mri_synthsr \
+		--i ${sub}_acq-2D_T1w.nii.gz \
+		--o ${derivdir}synth \
+		--threads 10
+	source DL-DiReCT/bin/activate
+	dl+direct \
+		--model v7 \
+		--subject $subname \
+		--bet \
+		${sub}_acq-2D_T1w.nii.gz \
+		${derivdir}dldir/${subname} \
+		--keep
+	deactivate
+	mv \
+		${derivdir}synth/${subname}_acq-2D_T1w_synthsr.nii.gz \
+		${derivdir}synth/${subname}_synth.nii.gz
+	mv \
+		${derivdir}dldir/${subname}/T1w_norm.nii.gz \
+		${derivdir}res/${subname}_res.nii.gz
+	cp \
+		${sub}_acq-2D_T1w.nii.gz \
+		${derivdir}aniso/${subname}_aniso.nii.gz
+	cp \
+		${sub}_acq-3D_T1w.nii.gz \
+		${derivdir}iso/${subname}_iso.nii.gz
+#	for imgmod in aniso iso res synth
+#    do
+#		SUBJECTS_DIR=${derivdir}${imgmod}_fs
+#		mkdir \
+#			-p \
+#			$SUBJECTS_DIR
+#		export FS_ALLOW_DEEP=1
+#		recon-all \
+#			-s ${subname}_${imgmod} \
+#			-i ${derivdir}${imgmod}/${subname}_${imgmod}.nii.gz \
+#			-all \
+#			-qcache \
+#			-3T \
+#			-openmp 10
+#	done
+#	recon-all-clinical.sh \
+#		${derivdir}aniso/${subname}_aniso.nii.gz \
+#		${subname}_aniso \
+#		10 \
+#		${derivdir}clinic_fs/
 done
 
-for imgmod in ${imgmods[@]}
-	do
-	fsldir=$(printf "${derivdir}${imgmod}_fslanat/")
-	for nifti in ${fsldir}input/*.nii
-		do
-		gzip $nifti
-	done
-done
+# Surface-based Morphometry with FreeSurfer
 
-### Surface-based Morphometry with FreeSurfer
-
-#### Preparing the environment
+# Preparing the environment
 
 rdirfs=${rdir}measurements_fs/
 declare -a measurescort=('volume' 'thickness')
@@ -77,19 +111,7 @@ declare -a hemis=('lh' 'rh')
 
 mkdir -p ${rdirfs}
 
-#### Reconstructing with FreeSurfer
-
-for sub in ${subs[@]}
-    do
-    for imgmod in ${imgmods[@]}
-        do
-        recon-all -s ${sub}_${imgmod} -i ${derivdir}${imgmod}_freesurfer/input/${sub}* -all -qcache -3T -openmp 2
-        mv ${derivdir}${imgmod}_freesurfer/input/${sub}* ${derivdir}${imgmod}_freesurfer/processed
-        mv -r ${SUBJECTS_DIR}/${sub}_${imgmod} ${derivdir}${imgmod}_freesurfer/
-    done
-done
-
-#### Aparcstats2table and Asegstats2table    
+# Aparcstats2table and Asegstats2table    
 
 for imgmod in ${imgmods[@]}
     do
@@ -137,9 +159,9 @@ cut -f 2-149 -d, ${rdirfs}dldirect-da_bi_thick.csv > ${rdirfs}dldirect-da_bi_thi
 cut -f 2-149 -d, ${rdirfs}dldirect-da_bi_thickstd.csv > ${rdirfs}dldirect-da_bi_thicknessstd.csv
 rm ${rdirfs}dldirect-da_bi_vol.csv ${rdirfs}dldirect-da_bi_thick.csv ${rdirfs}dldirect-da_bi_thickstd.csv
 
-### Subcortical Surface Shape with FSL
+# Subcortical Surface Shape with FSL
 
-#### Preprocessing
+# Preprocessing
 
 rdirfsl=${rdir}measurements_fsl/
 surfdirfsl=${surfdir}fsl/
@@ -159,7 +181,7 @@ for imgmod in ${imgmods[@]}
 
 	mkdir -p ${fsldir}design/Extras/Display_Volumes/${testno} ${fsldir}design/Extras/Screenshots ${fsldir}processed ${fsldir}design/Extras/Volumes ${rdirfsl} ${surfdirfsl}
 
-##### Segmentation
+## Segmentation
 
 	cp ${FSLDIR}/data/standard/MNI152_T1_${res}mm.nii.gz ${fsldir}design/mni.nii.gz
 	bet ${fsldir}design/mni.nii.gz ${fsldir}design/mni-bet.nii.gz
@@ -188,7 +210,7 @@ for imgmod in ${imgmods[@]}
 	${FSLDIR}/bin/slicesdir -p ${fsldir}design/mni.nii.gz ${fsldir}sub*/sub*biascorr-bet2std.nii.gz
 	mv slicesdir ${fsldir}slicesdir_reg
 
-##### Concatenation, weighting, and randomise
+## Concatenation, weighting, and randomise
 
 	for region in L_Accu L_Amyg L_Caud L_Hipp L_Pall L_Puta L_Thal R_Accu R_Amyg R_Caud R_Hipp R_Pall R_Puta R_Thal
 		do
@@ -215,12 +237,12 @@ for imgmod in ${imgmods[@]}
 		cp ${fsldir}design/${region}/*tfce*2.nii.gz ${fsldir}design/Extras/Display_Volumes/${testno}/${imgmod}_${region}_ptc-hc.nii.gz
 	done
 
-#### Volume estimation
+# Volume estimation
 
 	rm ${fsldir}design/Extras/Volumes/voxels_volumes.csv
 	for subj in ${fsldir}sub*
 		do
-		subname=${subj##*fslanat/} 
+		subname=${subj#*fslanat/} 
 		echo ${subname}_vox ${subname}_vols NA > ${fsldir}design/Extras/Volumes/${subname}_vols.csv
 		fslstats -t ${subj}/sub*_origsegs.nii.gz -V >> ${fsldir}design/Extras/Volumes/${subname}_vols.csv
 	done
@@ -231,7 +253,7 @@ for imgmod in ${imgmods[@]}
 	rm ${fsldir}design/Extras/Volumes/shapemin_shapemax.csv
 	for scan in ${fsldir}design/Extras/Display_Volumes/${testno}/*ptc*
 		do
-		scanname=${scan##*/}
+		scanname=${scan#*/}
 		scanlabel=${scanname%%.nii.gz}
 		echo ${scanlabel}_min ${scanlabel}_max NA > ${fsldir}design/Extras/Volumes/${scanlabel}_shapesigs.csv
 		fslstats $scan -R >> ${fsldir}design/Extras/Volumes/${scanlabel}_shapesigs.csv
@@ -241,9 +263,9 @@ for imgmod in ${imgmods[@]}
 	cp ${fsldir}design/Extras/Volumes/shapemin_shapemax.csv ${rdirfsl}${imgmod}_shapes.csv
 done
 
-### Calculating Dice Coefficients
+# Calculating Dice Coefficients
 
-#### Preparing the environment
+# Preparing the environment
     
 rdirdice=${rdir}measurements_dice/
 declare -a imgmods=('iso' 'aniso' 'res' 'dldirect' 'synthsr')
@@ -259,7 +281,7 @@ declare -a ints=('2' ... '12175') #All of the FreeSurfer integer labels
 
 mkdir -p ${rdirdice}
 
-#### Thresholding, binarising, and creating overlap volumes
+# Thresholding, binarising, and creating overlap volumes
 
 for ptc in ${subs[@]}
     do
@@ -307,7 +329,7 @@ for ptc in ${subs[@]}
     done
 done
 
-#### Recording the overlap volumes as csv files, and collating them
+# Recording the overlap volumes as csv files, and collating them
 
 declare -a ints=('2' ... '12175') #All of the FreeSurfer integer labels that are common with the truncated DL+DiReCT output
 
@@ -336,7 +358,7 @@ for imgmod in ${imgmods[@]}
     fi
 done
 
-#### Copying the volume csv files to the r directory
+# Copying the volume csv files to the r directory
 
 for i in ${derivdir}dice_fs/*l.csv
     do
