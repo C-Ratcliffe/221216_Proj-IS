@@ -125,68 +125,60 @@ mkdir \
 
 for i in fs fsc
 do
-	if [[ $i '==' 'fs' ]]
+	if [ $i '==' 'fs' ]
 	then
 		declare -a imgmods=('aniso' 'iso' 'res' 'synth')
-	elif [[ $i '==' 'fsc' ]]
+	elif [ $i '==' 'fsc' ]
 	then
 		declare -a imgmods=('aniso' 'iso' 'res')
-		for imgmod in ${imgmods[@]}
-		do
-			for subpath in ${derivdir}iso/sub-001_iso.nii.gz
-			do
-				subfile=${subpath##*/iso/}
-				subname=${subfile%%_iso.nii.gz}
-				sub=${derivdir}${imgmod}_${i}/${subname}_${imgmod}/
-				mri_segstats \
-					--seg ${sub}mri/aseg.mgz \
-					--ctab ${FREESURFER_HOME}/FreeSurferColorLUT.txt \
-					--excludeid 0 \
-					--sum ${sub}stats/aseg.stats
-			done
-		done
 	fi
 	for imgmod in ${imgmods[@]}
 	do
-		asegstats2table \
-			--skip \
-			--subjects ${derivdir}${imgmod}_${i}/sub* \
-			--meas volume \
-			--delimiter tab \
-			--tablefile ${rdirfs}${imgmod}_${i}-aseg_volume_uncut.tsv
-		cut -f 2-65 -d, ${rdirfs}${imgmod}_${i}-aseg_volume_uncut.tsv > ${rdirfs}${imgmod}_${i}-aseg_volume.tsv
-		rm ${rdirfs}${imgmod}_${i}-aseg_volume_uncut.tsv
 		for meas in volume thickness
 		do
 			for hemi in lh rh
 			do
 				aparcstats2table \
 					--skip \
-					--subjects ${derivdir}${imgmod}_${i}/sub* \
+					--subjects ${derivdir}${imgmod}_fs/sub* \
 					--parc aparc.a2009s \
 					--hemi $hemi \
 					--measure $meas \
 					--delimiter tab \
-					--tablefile ${rdirfs}${imgmod}_${i}-da_${hemi}_${meas}_uncut.tsv
-				cut -f 2-75 -d, ${rdirfs}${imgmod}_${i}-da_${hemi}_${meas}_uncut.tsv > ${rdirfs}${imgmod}_${i}-da_${hemi}_${meas}.tsv
-				rm ${rdirfs}${imgmod}_${i}-da_${hemi}_${meas}_uncut.tsv
+					--tablefile ${rdirfs}${imgmod}-da_${hemi}_${meas}_uncut.tsv
+				cut -f 2-75 -d, ${rdirfs}${imgmod}-da_${hemi}_${meas}_uncut.tsv > ${rdirfs}${imgmod}-da_${hemi}_${meas}.tsv
+				rm ${rdirfs}${imgmod}-da_${hemi}_${meas}_uncut.tsv
 			done
 			paste \
 				-d '\t' \
-				${rdirfs}${imgmod}_${i}-da_*_${meas}.tsv > ${rdirfs}${imgmod}_${i}-cort_${meas}.tsv
-			rm ${rdirfs}${imgmod}_${i}-da_lh_${meas}.tsv ${rdirfs}${imgmod}_${i}-da_rh_${meas}.tsv
+				${rdirfs}${imgmod}-da_*_${meas}.tsv > ${rdirfs}${imgmod}_${i}-cort_${meas}.tsv
+			rm ${rdirfs}${imgmod}-da_lh_${meas}.tsv ${rdirfs}${imgmod}-da_rh_${meas}.tsv
+		done
+		for meas in ${measuressubcort[@]}
+		do
+			asegstats2table --skip \
+				--subjects ${derivdir}${imgmod}_freesurfer/sub* \
+				--meas $meas \
+				--delimiter tab \
+				--tablefile ${rdirfs}${imgmod}-aseg_${meas}_uncut.tsv
+			cut -f 2-65 -d, ${rdirfs}${imgmod}-aseg_${meas}_uncut.tsv > ${rdirfs}${imgmod}-${i}-aseg_${meas}.tsv
+			rm ${rdirfs}${imgmod}-aseg_${meas}_uncut.tsv
+			if [ $meas '==' 'Area_mm2' ]
+			then
+				mv ${rdirfs}${imgmod}-aseg_${meas}.tsv ${rdirfs}${imgmod}-${i}-aseg_area_uncut.tsv
+				#cut -f 2-65 -d, ${rdirfs}${imgmod}-aseg_area_uncut.tsv > ${rdirfs}${imgmod}-aseg_area.tsv
+				rm ${rdirfs}${imgmod}-aseg_area_uncut.tsv
+			fi
 		done
 	done
 done
 
-awk '(NR == 1) || (FNR > 1)' ${derivdir}dldir/sub*/result-thick.csv > ${rdirfs}dldirect_thick.tsv
-awk '(NR == 1) || (FNR > 1)' ${derivdir}dldir/sub*/result-vol.csv > ${rdirfs}dldirect_vol.tsv
-cut -f 2-32 -d, ${rdirfs}dldirect_vol.tsv > ${rdirfs}dldirect_fs-aseg_volume.tsv
-cut -f 33-180 -d, ${rdirfs}dldirect_vol.tsv > ${rdirfs}dldirect_fs-cort_volume.tsv
-cut -f 2-149 -d, ${rdirfs}dldirect_thick.tsv > ${rdirfs}dldirect_fs-cort_thickness.tsv
-rm \
-	${rdirfs}dldirect_vol.tsv \
-	${rdirfs}dldirect_thick.tsv
+awk '(NR == 1) || (FNR > 1)' ${derivdir}dldir/sub*/result-thick.tsv > ${rdirfs}dldirect-da_bi_thick.tsv
+awk '(NR == 1) || (FNR > 1)' ${derivdir}dldir/sub*/result-vol.tsv > ${rdirfs}dldirect-da_bi_vol.tsv
+cut -f 2-32 -d, ${rdirfs}dldirect-da_bi_vol.tsv > ${rdirfs}dldirect-aseg_volume.tsv
+cut -f 33-180 -d, ${rdirfs}dldirect-da_bi_vol.tsv > ${rdirfs}dldirect-da_bi_volume.tsv
+cut -f 2-149 -d, ${rdirfs}dldirect-da_bi_thick.tsv > ${rdirfs}dldirect-da_bi_thickness.tsv
+rm ${rdirfs}dldirect-da_bi_vol.tsv ${rdirfs}dldirect-da_bi_thick.tsv
 
 # Subcortical Surface Shape with FSL
 
@@ -195,127 +187,117 @@ rm \
 for imgmod in aniso iso res synth
 	do
 	fsldir=$(printf "${derivdir}${imgmod}_fslanat/")	#subject directory
+	res=1																							#resolution of the reference image
+	preproc=yes																				#carry out preprocessing and segmentation
+	concat=yes																				#carry out concatenation of the bvars
+	group=yes																					#carry out group level comparisons with randomise
+	test=fstat1																				#carry out t- or f- tests
+	testno=1																					#label for the hypothesis testing
+	design=design1.mat																#name of the design matrix
+	contrast=contrast1.con														#name of the contrast file
+	ftest=ftest1.fts																	#name of the f-test file
+
 	mkdir \
 		-p \
-		${fsldir}design/volumes/
-	rm \
-		-f \
-		${fsldir}design/volumes/significances.tsv \
-		${fsldir}design/volumes/volumes.tsv
-	echo region > ${fsldir}design/volumes/meta_vols.tsv
-	echo contrast > ${fsldir}design/volumes/meta_sigs.tsv
-	for contrast in fstat1 tstat1 tstat2 tstat3 tstat4 tstat5 tstat6
-	do
-		echo ${contrast} >> ${fsldir}design/volumes/meta_sigs.tsv
-	done
+		${fsldir}design/Extras/Display_Volumes/${testno} \
+		${fsldir}design/Extras/Screenshots \
+		${fsldir}processed \
+		${fsldir}design/Extras/Volumes
 
 ## Segmentation
 
 	if [[ ! -e ${fsldir}design/mni-bet.nii.gz ]]
 	then
-		mri_synthstrip \
-			-i ${FSLDIR}/data/standard/MNI152_T1_1mm.nii.gz \
-			-o ${fsldir}design/mni-bet.nii.gz
+		cp \
+			${FSLDIR}/data/standard/MNI152_T1_${res}mm.nii.gz \
+			${fsldir}design/mni.nii.gz
+		bet \
+			${fsldir}design/mni.nii.gz \
+			${fsldir}design/mni-bet.nii.gz
 	fi
 
-	for subpath in ${derivdir}iso/*
+	for subj in ${fsldir}input/*.nii.gz
 	do
-		subfile=${subpath##*/iso/}
-		ptc=${subfile%%_iso.nii.gz}
-		subout=${fsldir}${ptc}/${ptc}
+		subname=$(grep -E -o 'sub-[0-9][0-9][0-9]' <<< $subj)
+		subpre=${fsldir}${subname}/${subname}
 		mkdir \
 			-p \
-			${fsldir}${ptc}
-		echo $subj
+			${fsldir}${subname}
+		echo $subname
 		N4BiasFieldCorrection \
-			-i ${derivdir}${imgmod}/${ptc}_${imgmod}.nii.gz \
-			-o ${subout}_biascorr.nii.gz
-		mri_synthstrip \
-			-i ${subout}_biascorr.nii.gz \
-			-o ${subout}_biascorr-bet.nii.gz
+			-i $subj \
+			-o ${subpre}_biascorr.nii.gz
+		bet \
+			${subpre}_biascorr.nii.gz \
+			${subpre}_biascorr-bet.nii.gz
 		flirt \
-			-in ${subout}_biascorr-bet.nii.gz \
+			-omat ${subpre}_biascorr-bet2std.mat \
+			-in ${subpre}_biascorr-bet.nii.gz \
 			-ref ${fsldir}design/mni-bet.nii.gz \
-			-omat ${subout}_biascorr-bet2std.mat \
-			-out ${subout}_biascorr-bet2std.nii.gz
-		run_first_all \
-			-a ${subout}_biascorr-bet2std.mat \
+			-out ${subpre}_biascorr-bet2std.nii.gz
+		run_first_all -a ${subpre}_biascorr-bet2std.mat \
 			-s L_Accu,L_Amyg,L_Caud,L_Hipp,L_Pall,L_Puta,L_Thal,R_Accu,R_Amyg,R_Caud,R_Hipp,R_Pall,R_Puta,R_Thal \
 			-b \
-			-i ${subout}_biascorr-bet.nii.gz \
-			-o ${subout}_first
-		echo ${ptc}_vols > ${fsldir}design/volumes/${ptc}_vols.tsv
-		ptcvol=$(fslstats -t ${subout}_first_all_none_origsegs.nii.gz -V | awk '{for (i=2; i<=NF; i+=2) print $i}')
-		echo $ptcvol >> ${fsldir}design/volumes/${ptc}_vols.tsv
+			-i ${subpre}_biascorr-bet.nii.gz \
+			-o ${subpre}_first
+		mv $subj ${fsldir}processed/
 	done
-	first_roi_slicesdir \
-		${fsldir}sub*/sub*biascorr.nii.gz \
-		${fsldir}sub*/sub*firstseg.nii.gz
-	mv \
-		slicesdir \
-		${fsldir}slicesdir_seg
-	${FSLDIR}/bin/slicesdir \
-		-p ${fsldir}design/mni-bet.nii.gz \
-		${fsldir}sub*/sub*biascorr-bet2std.nii.gz
-	mv \
-		slicesdir \
-		${fsldir}slicesdir_reg
+	first_roi_slicesdir ${fsldir}sub*/sub*biascorr.nii.gz ${fsldir}sub*/sub*firstseg.nii.gz
+	mv slicesdir ${fsldir}slicesdir_seg
+	${FSLDIR}/bin/slicesdir -p ${fsldir}design/mni.nii.gz ${fsldir}sub*/sub*biascorr-bet2std.nii.gz
+	mv slicesdir ${fsldir}slicesdir_reg
 
 ## Concatenation, weighting, and randomise
 
-	for hemi in L R
+	for region in L_Accu L_Amyg L_Caud L_Hipp L_Pall L_Puta L_Thal R_Accu R_Amyg R_Caud R_Hipp R_Pall R_Puta R_Thal
 	do
-		for struct in Accu Amyg Caud Hipp Pall Puta Thal
-		do
-			region=${hemi}_${struct}
-			rm \
-				-f \
-				${fsldir}design/${region}.bvars
-			echo ${region} >> ${fsldir}design/volumes/meta_vols.tsv
-			echo ${region}_sigs > ${fsldir}design/volumes/roi_${region}_sigs.tsv
-			mkdir \
-				-p \
-				${fsldir}design/${region}
-			concat_bvars \
-				${fsldir}design/${region}.bvars \
-				${fsldir}sub*/sub*first-${region}_first.bvars
-			first_utils \
-				--vertexAnalysis \
-				--usebvars \
-				-i ${fsldir}design/${region}.bvars \
-				-d ${derivdir}stats/design.mat \
-				-o ${fsldir}design/${region}_concat \
-				--useReconMNI \
-				-v >& ${fsldir}design/${region}_log.txt
-			randomise_parallel \
-				-i ${fsldir}design/${region}_concat.nii.gz \
-				-m ${fsldir}design/${region}_concat_mask.nii.gz \
-				-o ${fsldir}design/${region}/${region}_rand \
-				-d ${derivdir}stats/design.mat \
-				-t ${derivdir}stats/design.con \
-				-f ${derivdir}stats/design.fts \
-				-T
-			for contrast in fstat1 tstat1 tstat2 tstat3 tstat4 tstat5 tstat6
-			do
-				filesig=${fsldir}design/${region}/${region}_rand_tfce_corrp_${contrast}.nii.gz
-				roicrit=$(fslstats -t ${filesig} -R | awk '{print $2}')
-				roisig=$(( 1 - $roicrit ))
-				echo $roisig >> ${fsldir}design/volumes/roi_${region}_sigs.tsv
-			done
-		done
+		rm ${fsldir}design/${region}.bvars
+		mkdir -p ${fsldir}design/${region}
+		concat_bvars ${fsldir}design/${region}.bvars ${fsldir}sub*/sub*first-${region}_first.bvars
+		first_utils --vertexAnalysis \
+			--usebvars \
+			-i ${fsldir}design/${region}.bvars \
+			-d ${fsldir}design/$design \
+			-o ${fsldir}design/${region}/${design%%.*}_${region} \
+			--useReconMNI \
+			-v >& ${fsldir}design/${region}/log_${design%%.*}_${region}.txt
+		randomise -i ${fsldir}design/${region}/${design%%.*}_${region}.nii.gz \
+			-m ${fsldir}design/${region}/${design%%.*}_${region}_mask.nii.gz \
+			-o ${fsldir}design/${region}/${design%%.*}_${region} \
+			-d ${fsldir}design/${design} \
+			-t ${fsldir}design/${contrast} \
+			-T 
+		cp ${fsldir}design/${region}/*mask.nii.gz ${surfdirfsl}/${imgmod}_${region}_base.nii.gz
+		cp ${fsldir}design/${region}/*tfce*1.nii.gz ${surfdirfsl}/${imgmod}_${region}_hc-ptc.nii.gz
+		cp ${fsldir}design/${region}/*tfce*1.nii.gz ${fsldir}design/Extras/Display_Volumes/${testno}/${imgmod}_${region}_hc-ptc.nii.gz
+		cp ${fsldir}design/${region}/*tfce*2.nii.gz ${surfdirfsl}/${imgmod}_${region}_ptc-hc.nii.gz
+		cp ${fsldir}design/${region}/*tfce*2.nii.gz ${fsldir}design/Extras/Display_Volumes/${testno}/${imgmod}_${region}_ptc-hc.nii.gz
 	done
+
+# Volume estimation
+
+	rm ${fsldir}design/Extras/Volumes/voxels_volumes.csv
+	for subj in ${fsldir}sub*
+	do
+		subname=${subj#*fslanat/} 
+		echo ${subname}_vox ${subname}_vols NA > ${fsldir}design/Extras/Volumes/${subname}_vols.csv
+		fslstats -t ${subj}/sub*_origsegs.nii.gz -V >> ${fsldir}design/Extras/Volumes/${subname}_vols.csv
+	done
+	paste -d ' ' ${fsldir}design/Extras/Volumes/*vols.csv > ${fsldir}design/Extras/Volumes/voxels_volumes.csv
+	rm ${fsldir}design/Extras/Volumes/*_vols.csv
+	cp ${fsldir}design/Extras/Volumes/voxels_volumes.csv ${rdirfsl}${imgmod}_volumes.csv
 	
-	paste -d '\t' ${fsldir}design/volumes/*vols.tsv > ${fsldir}design/volumes/volumes.tsv
-	paste -d '\t' ${fsldir}design/volumes/*sigs.tsv > ${fsldir}design/volumes/significances.tsv
-	rm \
-		${fsldir}design/volumes/*_vols.tsv \
-		${fsldir}design/volumes/*_sigs.tsv
-	cp \
-		${fsldir}design/volumes/volumes.tsv \
-		${rdirfsl}${imgmod}_volumes.tsv
-	cp \
-		${fsldir}design/volumes/significances.tsv \
-		${rdirfsl}${imgmod}_significances.tsv
+	rm ${fsldir}design/Extras/Volumes/shapemin_shapemax.csv
+	for scan in ${fsldir}design/Extras/Display_Volumes/${testno}/*ptc*
+	do
+		scanname=${scan#*/}
+		scanlabel=${scanname%%.nii.gz}
+		echo ${scanlabel}_min ${scanlabel}_max NA > ${fsldir}design/Extras/Volumes/${scanlabel}_shapesigs.csv
+		fslstats $scan -R >> ${fsldir}design/Extras/Volumes/${scanlabel}_shapesigs.csv
+	done
+	paste -d ' ' ${fsldir}design/Extras/Volumes/*sigs.csv > ${fsldir}design/Extras/Volumes/shapemin_shapemax.csv
+	rm ${fsldir}design/Extras/Volumes/*sigs.csv
+	cp ${fsldir}design/Extras/Volumes/shapemin_shapemax.csv ${rdirfsl}${imgmod}_shapes.csv
 done
 
 # Calculating Dice Coefficients 
@@ -343,15 +325,13 @@ then
 		${rdir}ints.txt \
 		${rdir}ints_dl.txt > ${rdir}ints_all.txt
 fi
-
 ints=(${(u)$(<${rdir}ints_all.txt)})
-
 for i in fs fsc
 do
-	if [[ $i '==' 'fs' ]]
+	if [ $i '==' 'fs' ]
 	then
 		declare -a imgmods=('iso' 'aniso' 'res' 'synth' 'dldir')
-	elif [[ $i '==' 'fsc' ]]
+	elif [ $i '==' 'fsc' ]
 	then
 		declare -a imgmods=('iso' 'aniso' 'res')
 	fi
@@ -365,43 +345,43 @@ do
 			mkdir \
 				-p \
 				${derivdir}dice_fs/${imgmod}_${i}/${ptc}/
-			if [[ ! $imgmod == dldir ]]
+			if [ ! $imgmod == dldir ]
 			then
 				startvol=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg.nii.gz
 				mri_convert \
 					${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg.mgz \
 					${startvol}
-				if [[ ! ${imgmod}_${i} == iso_fs ]]
+				if [ ! $imgmod == iso ] || [ ! $i == fs ]
 				then
-					regvol=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg-affine.nii.gz
+					flirtvol=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg-affine.nii.gz
 					flirt \
 						-in ${startvol} \
 						-ref ${derivdir}iso_fs/${ptc}_iso/mri/aparc.a2009s+aseg.nii.gz \
 						-interp nearestneighbour \
 						-dof 6 \
-						-o ${regvol}
+						-o ${flirtvol}
 				else
-					regvol=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg.nii.gz
+					flirtvol=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg.nii.gz
 				fi
 			else
 				startvol=${derivdir}dldir/${ptc}/T1w_norm_seg.nii.gz
-				regvol=${derivdir}dldir/${ptc}/T1w_norm_reg.nii.gz
+				flirtvol=${derivdir}dldir/${ptc}/T1w_norm_reg.nii.gz
 				flirt \
 					-in ${startvol} \
 					-ref ${derivdir}iso_fs/${ptc}_iso/mri/aparc.a2009s+aseg.nii.gz \
 					-interp nearestneighbour \
 					-dof 6 \
-					-o ${regvol}
+					-o ${flirtvol}
 			fi
 			for parc in ${ints[@]}
 			do
 				fslmaths \
-					$regvol \
+					$flirtvol \
 					-thr ${parc} \
 					-uthr ${parc} \
 					-bin ${sub}_${parc}_bin.nii.gz
 			done
-			if [[ ! $imgmod == dldir ]]
+			if [ ! $imgmod == dldir ]
 			then
 				fslmaths \
 					${sub}_7_bin.nii.gz \
@@ -421,7 +401,7 @@ do
 			fi
 			for parc in ${ints[@]}
 			do
-				if [[ ! ${imgmod}_${i} == iso_fs ]]
+				if [ ! $imgmod == iso ] || [ ! $i == fs ]
 				then
 					fslmaths \
 						${sub}_${parc}_bin.nii.gz \
@@ -433,7 +413,7 @@ do
 	done
 done
 
-# Recording the overlap volumes as tsv files, and collating them
+# Recording the overlap volumes as csv files, and collating them
 
 ints=(${(u)$(<${rdir}ints_dl.txt)})
 
@@ -444,36 +424,26 @@ do
 		subfile=${subpath##*/iso/}
 		ptc=${subfile%%_iso.nii.gz}
 		sub=${derivdir}dice_fs/${imgmod}/${ptc}/${ptc}
-		iso=${derivdir}dice_fs/iso_fs/${ptc}/${ptc}
 		echo ${ptc} > ${derivdir}dice_fs/${imgmod}/${ptc}/vol.tsv
-		if [[ ${imgmod} == iso_fs ]]
-		then
-			for parc in ${ints[@]}
-			do
-				binvol=$(fslstats ${sub}_${parc}_bin.nii.gz -V | awk '{print $2}')
-				echo $binvol >> ${derivdir}dice_fs/${imgmod}/${ptc}/vol.tsv
-			done
-		elif [[ ! ${imgmod} == iso_fs ]]
+		for parc in ${ints[@]}
+		do
+			binvol=$(fslstats ${sub}_${parc}_bin.nii.gz -V | awk '{print $2}')
+			echo $binvol >> ${derivdir}dice_fs/${imgmod}/${ptc}/vol.tsv
+		done
+		if [ ! $imgmod == iso_fs ]
 		then
 			echo ${ptc} > ${derivdir}dice_fs/${imgmod}/${ptc}/ovl.tsv
-			echo ${ptc} > ${derivdir}dice_fs/${imgmod}/${ptc}/dsc.tsv
 			for parc in ${ints[@]}
 			do
 				ovlvol=$(fslstats ${sub}_${parc}_ovl.nii.gz -V | awk '{print $2}')
-				binvol=$(fslstats ${sub}_${parc}_bin.nii.gz -V | awk '{print $2}')
-				isovol=$(fslstats ${iso}_${parc}_bin.nii.gz -V | awk '{print $2}')
-				dscvol=$(( 2 * ${ovlvol} / ( ${binvol} + ${isovol} ) ))
-				echo $binvol >> ${derivdir}dice_fs/${imgmod}/${ptc}/vol.tsv
 				echo $ovlvol >> ${derivdir}dice_fs/${imgmod}/${ptc}/ovl.tsv
-				echo $dscvol >> ${derivdir}dice_fs/${imgmod}/${ptc}/dsc.tsv
 			done
 		fi
 	done
 	paste -d '\t' ${derivdir}dice_fs/${imgmod}/*/vol.tsv > ${derivdir}dice_fs/${imgmod}-vol.tsv
-	if [[ ! $imgmod == iso ]]
+	if [ ! $imgmod == iso ]
 	then
 		paste -d '\t' ${derivdir}dice_fs/${imgmod}/*/ovl.tsv > ${derivdir}dice_fs/${imgmod}-ovl.tsv
-		paste -d '\t' ${derivdir}dice_fs/${imgmod}/*/dsc.tsv > ${derivdir}dice_fs/${imgmod}-dsc.tsv
 	fi
 done
 
@@ -486,16 +456,13 @@ done
 
 # Visualising alignment
 
-for subpath in ${derivdir}iso/*001*
+for subpath in ${derivdir}iso/*019*
 do
 	subfile=${subpath##*/iso/}
 	ptc=${subfile%%_iso.nii.gz}
+	sub=${derivdir}iso_fs/${ptc}_iso/mri/aparc.a2009s+aseg.nii.gz
 	mrview \
-		${derivdir}iso_fs/${ptc}_iso/mri/brain.mgz \
-		-overlay.load ${derivdir}iso_fs/${ptc}_iso/mri/aparc.a2009s+aseg.nii.gz \
-		-overlay.colour 255,255,255 \
-		-overlay.threshold_min 200 \
-		-overlay.interpolation 0 \
+		$sub \
 		-overlay.load ${derivdir}aniso_fs/${ptc}_aniso/mri/aparc.a2009s+aseg-affine.nii.gz \
 		-overlay.colour 230,25,75 \
 		-overlay.threshold_min 200 \
@@ -512,15 +479,15 @@ do
 		-overlay.colour 245,130,48 \
 		-overlay.threshold_min 200 \
 		-overlay.interpolation 0 \
-		-overlay.load ${derivdir}iso_fsc/${ptc}_iso/mri/aparc.a2009s+aseg-affine.nii.gz \
+		-overlay.load ${derivdir}aniso_fsc/${ptc}_aniso/mri/aparc.a2009s+aseg-affine.nii.gz \
 		-overlay.colour 145,30,180 \
 		-overlay.threshold_min 200 \
 		-overlay.interpolation 0 \
-		-overlay.load ${derivdir}aniso_fsc/${ptc}_aniso/mri/aparc.a2009s+aseg-affine.nii.gz \
+		-overlay.load ${derivdir}res_fsc/${ptc}_res/mri/aparc.a2009s+aseg-affine.nii.gz \
 		-overlay.colour 70,240,240 \
 		-overlay.threshold_min 200 \
 		-overlay.interpolation 0 \
-		-overlay.load ${derivdir}res_fsc/${ptc}_res/mri/aparc.a2009s+aseg-affine.nii.gz \
+		-overlay.load ${derivdir}synth_fsc/${ptc}_synth/mri/aparc.a2009s+aseg-affine.nii.gz \
 		-overlay.colour 255,225,25 \
 		-overlay.threshold_min 200 \
 		-overlay.interpolation 0
