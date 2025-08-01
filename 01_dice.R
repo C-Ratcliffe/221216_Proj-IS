@@ -195,6 +195,16 @@ temp.data <- pivot_longer(
 	temp.data
 	, cols = everything()
 	)
+temp.data$name <- factor(
+	temp.data$name
+	, levels = rev(
+		levels(
+			factor(
+				temp.data$name
+				)
+			)
+		)
+	)
 colours <- c(
 	'aniso_fs' = '#816ed0'
 	, 'aniso_fsc' = '#67ad4d'
@@ -246,6 +256,17 @@ plot.violin <- ggplot(
 		limits = c(0.2, 1)
 		, breaks = c(0.2, 0.6, 1)
 		)+
+	scale_x_discrete( 
+		breaks = c(
+			'aniso_fs'
+			, 'aniso_fsc'
+			, 'dldirect_fs'
+			, 'iso_fsc'
+			, 'res_fs'
+			, 'res_fsc'
+			, 'synth_fs'
+			)
+		)+
 	theme(
 		text = element_text(
 			family='roboto light'
@@ -276,7 +297,7 @@ plot.violin <- ggplot(
 		, axis.ticks = element_blank()
 	)
 fname.violin <- paste0(
-	'output/dice-violin.png'
+	'output/violin-dsc.png'
 	)
 ggsave(
 	plot = plot.violin

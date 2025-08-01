@@ -11,6 +11,10 @@ library('ggplot2')
 library('ggpubr')
 library('tidyr')
 library('psych')
+# to collapse factor levels (i.e. DRE + IGE = pwE)
+library('forcats')
+# to allow the use of the leveneTest command
+library('car')
 
 # data import and management####
 # the code directory is set as the study directory for this script
@@ -32,50 +36,51 @@ dir.create(
 	, recursive = T
 	)
 
+#subgroups####
 # defining data structures and testing univariable relationships
-list.ptcdemos <- list()
-list.volglm <- list()
-list.volnorm <- list()
-list.volhomo <- list()
-list.volsig <- list()
-list.volsig$f <- matrix(
+list.ftest.ptcdemos <- list()
+list.ftest.volglm <- list()
+list.ftest.volnorm <- list()
+list.ftest.volhomo <- list()
+list.ftest.volsig <- list()
+list.ftest.volsig$f <- matrix(
 	nrow = 4
 	, ncol = 14
 	)
-list.volsig$hc_ige <- matrix(
+list.ftest.volsig$hc_ige <- matrix(
 	nrow = 4
 	, ncol = 14
 	)
-list.volsig$hc_dre <- matrix(
+list.ftest.volsig$hc_dre <- matrix(
 	nrow = 4
 	, ncol = 14
 	)
-list.volsig$dre_ige <- matrix(
+list.ftest.volsig$dre_ige <- matrix(
 	nrow = 4
 	, ncol = 14
 	)
-list.ptcdemos$age <- glm(
+list.ftest.ptcdemos$age <- glm(
 	age ~ group
 	, data = ptcvars
 	)
-list.ptcdemos$age <- summary(
-	list.ptcdemos$age
+list.ftest.ptcdemos$age <- summary(
+	list.ftest.ptcdemos$age
 	)
-list.ptcdemos$tpv <- glm(
+list.ftest.ptcdemos$tpv <- glm(
 	tpv ~ group
 	, data = ptcvars
 	)
-list.ptcdemos$tpv <- summary(
-	list.ptcdemos$tpv
+list.ftest.ptcdemos$tpv <- summary(
+	list.ftest.ptcdemos$tpv
 	)
-list.ptcdemos$sex <- chisq.test(
+list.ftest.ptcdemos$sex <- chisq.test(
 	table(
 		ptcvars$group
 		, ptcvars$sex
 		)
 	)
 
-# a for loop computes a glm for all of the subcortical volumes####
+# a for loop computes a glm for all of the subcortical volumes
 for (i in 1:length(tab.fsl_vol)){
 	for (j in 1:nrow(tab.fsl_vol[[i]])){
 		cellname <- paste(
@@ -93,12 +98,12 @@ for (i in 1:length(tab.fsl_vol)){
 		temp.aov <- aov(
 			temp.vol ~ ptcvars$group + ptcvars$age + ptcvars$sex + ptcvars$tpv
 			)
-		list.volnorm[[cellname]] <- shapiro.test(
+		list.ftest.volnorm[[cellname]] <- shapiro.test(
 			resid(
 				temp.aov
 				)
 			)
-		list.volhomo[[cellname]] <- leveneTest(
+		list.ftest.volhomo[[cellname]] <- leveneTest(
 			c(
 				temp.vol
 				)
@@ -109,19 +114,19 @@ for (i in 1:length(tab.fsl_vol)){
 			, ptcvars$group
 			)
 		colnames(temp.df) <- c('vol', 'group')
-		list.volglm[[cellname]] <- kruskal.test(
+		list.ftest.volglm[[cellname]] <- kruskal.test(
 			vol ~ group
 			, data = temp.df
 			)
-		list.volsig$f[i,j] <- as.numeric(
-			list.volglm[[cellname]][[3]]
+		list.ftest.volsig$f[i,j] <- as.numeric(
+			list.ftest.volglm[[cellname]][[3]]
 			)
 		temp.dftrunc <- temp.df[temp.df$group != 'IGE', ] 
 		temp.model <- kruskal.test(
 			vol ~ group
 			, data = temp.dftrunc
 			)
-		list.volsig$hc_dre[i,j] <- as.numeric(
+		list.ftest.volsig$hc_dre[i,j] <- as.numeric(
 			temp.model[[3]]
 			)
 		temp.dftrunc <- temp.df[temp.df$group != 'DRE', ]
@@ -129,7 +134,7 @@ for (i in 1:length(tab.fsl_vol)){
 			vol ~ group
 			, data = temp.dftrunc
 			)
-		list.volsig$hc_ige[i,j] <- as.numeric(
+		list.ftest.volsig$hc_ige[i,j] <- as.numeric(
 			temp.model[[3]]
 			)
 		temp.dftrunc <- temp.df[temp.df$group != 'HC', ]
@@ -137,24 +142,123 @@ for (i in 1:length(tab.fsl_vol)){
 			vol ~ group
 			, data = temp.dftrunc
 			)
-		list.volsig$dre_ige[i,j] <- as.numeric(
+		list.ftest.volsig$dre_ige[i,j] <- as.numeric(
 			temp.model[[3]]
 		)
 	}
 }
 
-for (i in 1:length(list.volsig)){
-	colnames(list.volsig[[i]]) <- rownames(
+for (i in 1:length(list.ftest.volsig)){
+	colnames(list.ftest.volsig[[i]]) <- rownames(
 		tab.fsl_vol[[1]]
 		)
-	rownames(list.volsig[[i]]) <- names(
+	rownames(list.ftest.volsig[[i]]) <- names(
 		tab.fsl_vol
 		)
 	write.table(
-		list.volsig[[i]]
+		list.ftest.volsig[[i]]
 		, paste0(
 			'output/volsigs/'
-			, names(list.volsig)[i]
+			, names(list.ftest.volsig)[i]
+			, '.tsv'
+			)
+		, quote = F
+		, sep = '\t'
+		)
+}
+
+#patients vs controls####
+# defining data structures and testing univariable relationships
+ptcvars$group <- fct_collapse(
+	ptcvars$group
+	, pwE = c('DRE', 'IGE')
+	)
+list.ttest.ptcdemos <- list()
+list.ttest.volglm <- list()
+list.ttest.volnorm <- list()
+list.ttest.volhomo <- list()
+list.ttest.volsig <- list()
+list.ttest.volsig$pwe_hc <- matrix(
+	nrow = 4
+	, ncol = 14
+	)
+list.ttest.ptcdemos$age <- glm(
+	age ~ group
+	, data = ptcvars
+	)
+list.ttest.ptcdemos$age <- summary(
+	list.ttest.ptcdemos$age
+	)
+list.ttest.ptcdemos$tpv <- glm(
+	tpv ~ group
+	, data = ptcvars
+	)
+list.ttest.ptcdemos$tpv <- summary(
+	list.ttest.ptcdemos$tpv
+	)
+list.ttest.ptcdemos$sex <- chisq.test(
+	table(
+		ptcvars$group
+		, ptcvars$sex
+		)
+	)
+
+# a for loop computes a glm for all of the subcortical volumes
+for (i in 1:length(tab.fsl_vol)){
+	for (j in 1:nrow(tab.fsl_vol[[i]])){
+		cellname <- paste(
+			names(
+				tab.fsl_vol
+				)[i]
+			, rownames(
+				tab.fsl_vol[[i]]
+				)[j]
+			, sep = '_'
+			)
+		temp.vol <- t(
+			tab.fsl_vol[[i]][j, ]
+			)
+		temp.aov <- aov(
+			temp.vol ~ ptcvars$group + ptcvars$age + ptcvars$sex + ptcvars$tpv
+			)
+		list.ttest.volnorm[[cellname]] <- shapiro.test(
+			resid(
+				temp.aov
+				)
+			)
+		list.ttest.volhomo[[cellname]] <- leveneTest(
+			c(
+				temp.vol
+				)
+			, ptcvars$group
+			)
+		temp.df <- data.frame(
+			temp.vol
+			, ptcvars$group
+			)
+		colnames(temp.df) <- c('vol', 'group')
+		list.ttest.volglm[[cellname]] <- kruskal.test(
+			vol ~ group
+			, data = temp.df
+			)
+		list.ttest.volsig$pwe_hc[i,j] <- as.numeric(
+			list.ttest.volglm[[cellname]][[3]]
+			)
+	}
+}
+
+for (i in 1:length(list.ttest.volsig)){
+	colnames(list.ttest.volsig[[i]]) <- rownames(
+		tab.fsl_vol[[1]]
+		)
+	rownames(list.ttest.volsig[[i]]) <- names(
+		tab.fsl_vol
+		)
+	write.table(
+		list.ttest.volsig[[i]]
+		, paste0(
+			'output/volsigs/'
+			, names(list.ttest.volsig)[i]
 			, '.tsv'
 			)
 		, quote = F

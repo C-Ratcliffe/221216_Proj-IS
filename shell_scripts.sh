@@ -434,6 +434,7 @@ do
 done
 
 # Recording the overlap volumes as tsv files, and collating them
+# regional
 
 ints=(${(u)$(<${rdir}ints_dl.txt)})
 
@@ -477,9 +478,67 @@ do
 	fi
 done
 
-# Copying the volume csv files to the r directory
+# wholebrain
 
-for i in ${derivdir}dice_fs/*l.tsv
+for i in fs fsc
+do
+	if [[ ${i} == 'fs' ]]
+	then
+		declare -a imgmods=('iso' 'aniso' 'res' 'synth' 'dldir')
+	elif [[ ${i} == 'fsc' ]]
+	then
+		declare -a imgmods=('iso' 'aniso' 'res')
+	fi
+	for imgmod in ${imgmods[@]}
+	do
+		echo ${imgmod}_${i} > ${derivdir}/dice_fs/${imgmod}_${i}/wholebrain_vol.tsv
+		echo ${imgmod}_${i} > ${derivdir}/dice_fs/${imgmod}_${i}/wholebrain_ovl.tsv
+		echo ${imgmod}_${i} > ${derivdir}/dice_fs/${imgmod}_${i}/wholebrain_dsc.tsv
+		for subpath in ${derivdir}iso/*
+		do
+			subfile=${subpath##*/iso/}
+			ptc=${subfile%%_iso.nii.gz}
+			iso=${derivdir}iso_fs/${ptc}_iso/mri/aparc.a2009s+aseg.nii.gz
+			if [[ ${imgmod}_${i} == 'iso_fs' ]]
+			then
+				sub=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg.nii.gz
+				ovl=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg-ovl.nii.gz
+			elif [[ ${imgmod}_${i} == 'dldir_fs' ]]
+			then
+				sub=${derivdir}${imgmod}/${ptc}/T1w_norm_reg.nii.gz
+				ovl=${derivdir}${imgmod}/${ptc}/T1w_norm_ovl.nii.gz
+			elif [[ ${imgmod}_${i} != 'iso_fs' && ${imgmod}_${i} != 'dldir_fs' ]]
+			then
+				sub=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg-affine.nii.gz
+				ovl=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg-ovl.nii.gz
+			fi
+			fslmaths \
+				${sub} \
+				-mul ${iso} \
+				${ovl}
+			ovlvol=$(fslstats ${ovl} -V | awk '{print $2}')
+			binvol=$(fslstats ${sub} -V | awk '{print $2}')
+			isovol=$(fslstats ${iso} -V | awk '{print $2}')
+			dscvol=$(( 2 * ${ovlvol} / ( ${binvol} + ${isovol} ) ))
+			echo $binvol >> ${derivdir}/dice_fs/${imgmod}_${i}/wholebrain_vol.tsv
+			echo $ovlvol >> ${derivdir}/dice_fs/${imgmod}_${i}/wholebrain_ovl.tsv
+			echo $dscvol >> ${derivdir}/dice_fs/${imgmod}_${i}/wholebrain_dsc.tsv
+		done
+	done
+done
+echo sub > ${derivdir}/dice_fs/wholebrain_meta.tsv
+for subpath in ${derivdir}iso/*
+do
+	subfile=${subpath##*/iso/}
+	ptc=${subfile%%_iso.nii.gz}
+	echo ${ptc} >> ${derivdir}/dice_fs/wholebrain_meta.tsv
+done
+paste -d '\t' ${derivdir}dice_fs/*/wholebrain_dsc.tsv > ${derivdir}dice_fs/wholebrain_dice.tsv
+paste -d '\t' ${derivdir}dice_fs/*/wholebrain_vol.tsv > ${derivdir}dice_fs/wholebrain_vols.tsv
+
+# Copying the volume tsv files to the r directory
+
+for i in ${derivdir}dice_fs/*.tsv
 do
 	cp $i ${rdirdice}
 done

@@ -304,6 +304,16 @@ tab.violin$vol <- rbind(tab.violin$asegvol, tab.violin$cortvol)
 # violin plots
 for (i in 1:length(tab.violin)){
 	temp.data <- tab.violin[[i]]
+	temp.data$name <- factor(
+		temp.data$name
+		, levels = rev(
+			levels(
+				factor(
+					temp.data$name
+					)
+				)
+			)
+		)
 	colours <- c(
 		'aniso_fs' = '#816ed0'
 		, 'aniso_fsc' = '#67ad4d'
@@ -392,9 +402,9 @@ for (i in 1:length(tab.violin)){
 			, axis.ticks = element_blank()
 		)
 	fname.violin <- paste0(
-		'output/'
+		'output/violin-'
 		, names(tab.violin)[i]
-		, '-violin.png'
+		, '.png'
 		)
 	ggsave(
 		plot = plot.violin

@@ -1,10 +1,10 @@
 # 221216_Proj-IS
 
-Scripts (shell and r) for the 2022 Image Synthesis paper
+Scripts (zsh and r) for the 2025 Image Synthesis paper
 
 ## shell_scripts
 
-A collection of shell-compatible image preprocessing and metric extraction scripts (ran in Bash)
+A collection of shell-compatible image preprocessing and metric extraction scripts (ran in zsh)
 
 ## *.R
 
