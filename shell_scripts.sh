@@ -45,6 +45,8 @@ find . -name "*acq-2D_T1w.nii.gz" -exec rename 's/acq-2D_T1w/aniso/' {} ";"
 mkdir \
 	-p \
 	${derivdir}dldir/ \
+	${derivdir}dliso/ \
+	${derivdir}dlsyn/ \
 	${derivdir}synth/ \
 	${derivdir}aniso/ \
 	${derivdir}iso/ \
@@ -62,18 +64,30 @@ do
 		--i ${sub}_acq-2D_T1w.nii.gz \
 		--o ${derivdir}synth \
 		--threads 10
+	mv \
+		${derivdir}synth/${subname}_acq-2D_T1w_synthsr.nii.gz \
+		${derivdir}synth/${subname}_synth.nii.gz
 	source DL-DiReCT/bin/activate
 	dl+direct \
 		--model v7 \
-		--subject $subname \
+		--subject ${subname} \
 		--bet \
 		${sub}_acq-2D_T1w.nii.gz \
 		${derivdir}dldir/${subname} \
 		--keep
+	dl+direct \
+		--model v7 \
+		--subject ${subname} \
+		--bet \
+		${sub}_acq-3D_T1w.nii.gz \
+		${derivdir}dliso/${subname} 
+	dl+direct \
+		--model v7 \
+		--subject ${subname} \
+		--bet \
+		${derivdir}synth/${subname}_synth.nii.gz \
+		${derivdir}dlsyn/${subname} 
 	deactivate
-	mv \
-		${derivdir}synth/${subname}_acq-2D_T1w_synthsr.nii.gz \
-		${derivdir}synth/${subname}_synth.nii.gz
 	mv \
 		${derivdir}dldir/${subname}/T1w_norm.nii.gz \
 		${derivdir}res/${subname}_res.nii.gz
@@ -96,7 +110,7 @@ do
 			-all \
 			-qcache \
 			-3T \
-			-openmp 24
+			-openmp 10
 	done
 	for imgmod in aniso iso res
   do
@@ -108,7 +122,7 @@ do
 		recon-all-clinical.sh \
 			${derivdir}${imgmod}/${subname}_${imgmod}.nii.gz \
 			${subname}_${imgmod} \
-			24 \
+			10 \
 			${derivdir}${imgmod}_fsc/
 	done
 done
@@ -179,14 +193,17 @@ do
 	done
 done
 
-awk '(NR == 1) || (FNR > 1)' ${derivdir}dldir/sub*/result-thick.csv > ${rdirfs}dldirect_thick.tsv
-awk '(NR == 1) || (FNR > 1)' ${derivdir}dldir/sub*/result-vol.csv > ${rdirfs}dldirect_vol.tsv
-cut -f 2-32 -d, ${rdirfs}dldirect_vol.tsv > ${rdirfs}dldirect_fs-aseg_volume.tsv
-cut -f 33-180 -d, ${rdirfs}dldirect_vol.tsv > ${rdirfs}dldirect_fs-cort_volume.tsv
-cut -f 2-149 -d, ${rdirfs}dldirect_thick.tsv > ${rdirfs}dldirect_fs-cort_thickness.tsv
-rm \
-	${rdirfs}dldirect_vol.tsv \
-	${rdirfs}dldirect_thick.tsv
+for i in dldir dliso dlsyn
+do
+	awk '(NR == 1) || (FNR > 1)' ${derivdir}${i}/sub*/result-thick.csv > ${rdirfs}${i}_thick.tsv
+	awk '(NR == 1) || (FNR > 1)' ${derivdir}${i}/sub*/result-vol.csv > ${rdirfs}${i}_vol.tsv
+	cut -f 2-32 -d, ${rdirfs}${i}_vol.tsv > ${rdirfs}${i}_fs-aseg_volume.tsv
+	cut -f 33-180 -d, ${rdirfs}${i}_vol.tsv > ${rdirfs}${i}_fs-cort_volume.tsv
+	cut -f 2-149 -d, ${rdirfs}${i}_thick.tsv > ${rdirfs}${i}_fs-cort_thickness.tsv
+	rm \
+		${rdirfs}${i}_vol.tsv \
+		${rdirfs}${i}_thick.tsv
+done
 
 # Subcortical Surface Shape with FSL
 
@@ -350,7 +367,7 @@ for i in fs fsc
 do
 	if [[ $i '==' 'fs' ]]
 	then
-		declare -a imgmods=('iso' 'aniso' 'res' 'synth' 'dldir')
+		declare -a imgmods=('iso' 'aniso' 'res' 'synth' 'dldir' 'dliso' 'dlsyn')
 	elif [[ $i '==' 'fsc' ]]
 	then
 		declare -a imgmods=('iso' 'aniso' 'res')
@@ -365,7 +382,7 @@ do
 			mkdir \
 				-p \
 				${derivdir}dice_fs/${imgmod}_${i}/${ptc}/
-			if [[ ! $imgmod == dldir ]]
+			if [[ ! $imgmod == dldir && ! $imgmod == dliso && ! $imgmod == dlsyn ]]
 			then
 				startvol=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg.nii.gz
 				mri_convert \
@@ -384,8 +401,8 @@ do
 					regvol=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg.nii.gz
 				fi
 			else
-				startvol=${derivdir}dldir/${ptc}/T1w_norm_seg.nii.gz
-				regvol=${derivdir}dldir/${ptc}/T1w_norm_reg.nii.gz
+				startvol=${derivdir}${imgmod}/${ptc}/T1w_norm_seg.nii.gz
+				regvol=${derivdir}${imgmod}/${ptc}/T1w_norm_reg.nii.gz
 				flirt \
 					-in ${startvol} \
 					-ref ${derivdir}iso_fs/${ptc}_iso/mri/aparc.a2009s+aseg.nii.gz \
@@ -401,7 +418,7 @@ do
 					-uthr ${parc} \
 					-bin ${sub}_${parc}_bin.nii.gz
 			done
-			if [[ ! $imgmod == dldir ]]
+			if [[ ! $imgmod == dldir && ! $imgmod == dliso && ! $imgmod == dlsyn ]]
 			then
 				fslmaths \
 					${sub}_7_bin.nii.gz \
@@ -438,7 +455,7 @@ done
 
 ints=(${(u)$(<${rdir}ints_dl.txt)})
 
-for imgmod in aniso_fs aniso_fsc dldir_fs iso_fs iso_fsc res_fs res_fsc synth_fs
+for imgmod in aniso_fs aniso_fsc dldir_fs dliso_fs dlsyn_fs iso_fs iso_fsc res_fs res_fsc synth_fs
 do
 	for subpath in ${derivdir}iso/*
 	do
@@ -484,7 +501,7 @@ for i in fs fsc
 do
 	if [[ ${i} == 'fs' ]]
 	then
-		declare -a imgmods=('iso' 'aniso' 'res' 'synth' 'dldir')
+		declare -a imgmods=('iso' 'aniso' 'res' 'synth' 'dldir' 'dliso' 'dlsyn')
 	elif [[ ${i} == 'fsc' ]]
 	then
 		declare -a imgmods=('iso' 'aniso' 'res')
@@ -503,11 +520,11 @@ do
 			then
 				sub=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg.nii.gz
 				ovl=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg-ovl.nii.gz
-			elif [[ ${imgmod}_${i} == 'dldir_fs' ]]
+			elif [[ ${imgmod}_${i} == 'dldir_fs' || ${imgmod}_${i} == 'dliso_fs' || ${imgmod}_${i} == 'dlsyn_fs' ]]
 			then
 				sub=${derivdir}${imgmod}/${ptc}/T1w_norm_reg.nii.gz
 				ovl=${derivdir}${imgmod}/${ptc}/T1w_norm_ovl.nii.gz
-			elif [[ ${imgmod}_${i} != 'iso_fs' && ${imgmod}_${i} != 'dldir_fs' ]]
+			elif [[ ${imgmod}_${i} != 'iso_fs' && ${imgmod}_${i} != 'dldir_fs'  && ${imgmod}_${i} != 'dliso_fs'  && ${imgmod}_${i} != 'dlsyn_fs' ]]
 			then
 				sub=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg-affine.nii.gz
 				ovl=${derivdir}${imgmod}_${i}/${ptc}_${imgmod}/mri/aparc.a2009s+aseg-ovl.nii.gz
@@ -540,7 +557,9 @@ paste -d '\t' ${derivdir}dice_fs/*/wholebrain_vol.tsv > ${derivdir}dice_fs/whole
 
 for i in ${derivdir}dice_fs/*.tsv
 do
-	cp $i ${rdirdice}
+	cp \
+		$i \
+		${rdirdice}
 done
 
 # Visualising alignment
