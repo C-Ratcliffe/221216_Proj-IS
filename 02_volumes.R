@@ -13,20 +13,20 @@ library('psych')
 
 # data import and management####
 # the code directory is set as the study directory for this script
-studydir <- '/Users/coreyratcliffe/Documents/WD_code/rstats/221216_Proj-IS/'
-derivdir <- '/Users/coreyratcliffe/Documents/WD_imaging/221216_Proj-IS/derivatives/'
-setwd(studydir)
+dir.r <- '/Users/coreyratcliffe/Documents/WD_code/rstats/221216_Proj-IS/'
+dir.data <- '/Users/coreyratcliffe/Documents/WD_imaging/221216_Proj-IS/derivatives/'
+setwd(dir.r)
 source("00_functions.r")
 
 # importing the data, and the image files
 load(
 	paste0(
-		studydir
+		dir.r
 		, 'input/fs_data.rdata'
 		)
 )
 dir.create(
-	paste0(studydir, 'output/iccs')
+	paste0(dir.r, 'output/iccs')
 	, showWarnings = F
 	, recursive = T
 	)
@@ -106,17 +106,72 @@ for (i in c('aseg_volume', 'cort_thickness', 'cort_volume')){
 			, na.rm = T
 			)
 		)
-	temp <- pivot_longer(
+	temp.data <- pivot_longer(
 		k
 		, cols = -'iso_fs'
 		, names_to = 'variable'
 		, values_to = 'value'
 	)
-	plots[[i]] <- ggplot(
-		temp
+	ind.body <- ! temp.data$variable == 'dliso_fs' & ! temp.data$variable == 'dlsyn_fs'
+	ind.supp <- temp.data$variable == 'dldir_fs' | temp.data$variable == 'dliso_fs' | temp.data$variable == 'dlsyn_fs'
+	colours.body <- c(
+		'aniso_fs' = '#816ed0'
+		, 'aniso_fsc' = '#67ad4d'
+		, 'dldir_fs' = '#b868aa'
+		, 'iso_fsc' = '#c88d2d'
+		, 'res_fs' = '#4ea999'
+		, 'res_fsc' = '#cc5560'
+		, 'synth_fs' = '#a08149'
+		)
+	colours.supp <- c(
+		'dldir_fs' = '#b868aa'
+		, 'dliso_fs' = '#7a5bac'
+		, 'dlsyn_fs' = '#d17ca0'
+		)
+	fname.body <- paste0(
+		'output/iccs/'
+		, i
+		, '_body.png'
+		)
+	fname.supp <- paste0(
+		'output/iccs/'
+		, i
+		, '_supp.png'
+		)
+	height.body <- 2480
+	height.supp <- 1063
+	for (j in c('body', 'supp')){
+		temp.ind <- get(
+			paste0(
+				'ind.'
+				, j
+				)
+			)
+		temp.colours <- get(
+			paste0(
+				'colours.'
+				, j
+				)
+			)
+		temp.fname <- get(
+			paste0(
+				'fname.'
+				, j
+				)
+			)
+		temp.height <- get(
+			paste0(
+				'height.'
+				, j
+				)
+			)
+		temp.trunc <- temp.data[temp.ind, ]
+		plots[[i]] <- ggplot(
+		temp.trunc
 		, aes(
 			x = iso_fs
 			, y = value
+			, colour = variable
 			)
 		)+
 		geom_abline(
@@ -126,6 +181,9 @@ for (i in c('aseg_volume', 'cort_thickness', 'cort_volume')){
 	  geom_point(
 	  	alpha = 0.6
 	  	)+
+		scale_colour_manual(
+			values = temp.colours
+			)+
 		scale_x_continuous(
 			limits = c(
 				lim_min
@@ -178,23 +236,19 @@ for (i in c('aseg_volume', 'cort_thickness', 'cort_volume')){
 			strip.text = element_blank()
 			, strip.background = element_blank()
 			)
-		fname <- paste0(
-			'output/iccs/'
-			, i
-			, '.png'
-			)
 	ggsave(
 		plot = plots[[i]]
 		, device = 'png'
-		, height = 210
-		, width = 185/3
-		, units = 'mm'
-		, filename = fname
+		, height = temp.height
+		, width = 728
+		, units = 'px'
+		, filename = temp.fname
 		)
+	}
 }
 
 # normalisation####
-for (i in c(1, 2, 3, 5, 6, 7, 8, 4)){
+for (i in c(1:5, 7:10, 6)){
 	for (j in 1:length(tab.aseg_volume[[i]])){
 		k <- unlist(tab.aseg_volume[[i]][j])
 		l <- unlist(tab.aseg_volume$iso_fs[j])
@@ -246,62 +300,62 @@ tab.mask$cortvol <- tab.cort_volume
 
 tab.violin$vol <- rbind(tab.violin$asegvol, tab.violin$cortvol)
 
-## creating volume masks
-#for (i in opt.mods[-4]){
-#	asegvol_ints <- cbind(
-#		opt.index[1:26, 1]
-#		, tab.mask$asegvol[i]
-#		)
-#	base_asegvol <- destrieux_subcort
-#	for (j in 1:nrow(asegvol_ints)){
-#		base_asegvol[base_asegvol == asegvol_ints[j, 1]] <- asegvol_ints[j, 2]
-#	}
-#	avpath <- paste0(
-#		'output/asegvol-'
-#		, i
-#		, '.nii.gz'
-#		)
-#	writeNifti(
-#		base_asegvol
-#		, avpath
-#		)
-#	cortthi_ints <- cbind(
-#		opt.index[27:174, 1]
-#		, tab.mask$cortthi[i]
-#		)
-#	base_cortthi <- destrieux_cort
-#	for (j in 1:nrow(cortthi_ints)){
-#		base_cortthi[base_cortthi == cortthi_ints[j, 1]] <- cortthi_ints[j, 2]
-#	}
-#	ctpath <- paste0(
-#		'output/cortthi-'
-#		, i
-#		, '.nii.gz'
-#		)
-#	writeNifti(
-#		base_cortthi
-#		, ctpath
-#		)
-#	cortvol_ints <- cbind(
-#		opt.index[27:174, 1]
-#		, tab.mask$cortvol[i]
-#		)
-#	base_cortvol <- destrieux_cort
-#	for (j in 1:nrow(cortvol_ints)){
-#		base_cortvol[base_cortvol == cortvol_ints[j, 1]] <- cortvol_ints[j, 2]
-#	}
-#	cvpath <- paste0(
-#		'output/cortvol-'
-#		, i
-#		, '.nii.gz'
-#		)
-#	writeNifti(
-#		base_cortvol
-#		, cvpath
-#		)
-#}
+# creating volume mask images####
+for (i in opt.mods[-6]){
+	asegvol_ints <- cbind(
+		opt.index[1:26, 1]
+		, tab.mask$asegvol[i]
+		)
+	base_asegvol <- destrieux_subcort
+	for (j in 1:nrow(asegvol_ints)){
+		base_asegvol[base_asegvol == asegvol_ints[j, 1]] <- asegvol_ints[j, 2]
+	}
+	avpath <- paste0(
+		'output/asegvol-'
+		, i
+		, '.nii.gz'
+		)
+	writeNifti(
+		base_asegvol
+		, avpath
+		)
+	cortthi_ints <- cbind(
+		opt.index[27:174, 1]
+		, tab.mask$cortthi[i]
+		)
+	base_cortthi <- destrieux_cort
+	for (j in 1:nrow(cortthi_ints)){
+		base_cortthi[base_cortthi == cortthi_ints[j, 1]] <- cortthi_ints[j, 2]
+	}
+	ctpath <- paste0(
+		'output/cortthi-'
+		, i
+		, '.nii.gz'
+		)
+	writeNifti(
+		base_cortthi
+		, ctpath
+		)
+	cortvol_ints <- cbind(
+		opt.index[27:174, 1]
+		, tab.mask$cortvol[i]
+		)
+	base_cortvol <- destrieux_cort
+	for (j in 1:nrow(cortvol_ints)){
+		base_cortvol[base_cortvol == cortvol_ints[j, 1]] <- cortvol_ints[j, 2]
+	}
+	cvpath <- paste0(
+		'output/cortvol-'
+		, i
+		, '.nii.gz'
+		)
+	writeNifti(
+		base_cortvol
+		, cvpath
+		)
+}
 
-# violin plots
+# violin plots####
 for (i in 1:length(tab.violin)){
 	temp.data <- tab.violin[[i]]
 	temp.data$name <- factor(
@@ -314,105 +368,146 @@ for (i in 1:length(tab.violin)){
 				)
 			)
 		)
-	colours <- c(
+	ind.body <- ! temp.data$name == 'dliso_fs' & ! temp.data$name == 'dlsyn_fs'
+	ind.supp <- temp.data$name == 'dldir_fs' | temp.data$name == 'dliso_fs' | temp.data$name == 'dlsyn_fs'
+	colours.body <- c(
 		'aniso_fs' = '#816ed0'
 		, 'aniso_fsc' = '#67ad4d'
-		, 'dldirect_fs' = '#b868aa'
+		, 'dldir_fs' = '#b868aa'
 		, 'iso_fsc' = '#c88d2d'
 		, 'res_fs' = '#4ea999'
 		, 'res_fsc' = '#cc5560'
 		, 'synth_fs' = '#a08149'
 		)
-	if (names(tab.violin)[i] == 'cortthi'){
-		limits.y <- c(-8, 8)
-		breaks.y <- c(-8, 0, 8)
-	} else {
-		limits.y <- c(-4, 4)
-		breaks.y <- c(-4, 0, 4)
-	}
-	plot.violin <- ggplot(
-		temp.data
-		, aes(
-			x = name
-			, y = value
-			)
-		)+
-		geom_violin(
-			trim = F
-			, lwd = rel(0.5)
-			, alpha = 0.8
-			, aes(
-				fill = name
-				, colour = name
-				)
-			)+
-		geom_jitter(
-			shape = 20
-			, width = 0.05
-			, colour = 'grey'
-			, alpha = 0.8
-			)+
-		stat_summary(
-			fun=mean
-			, geom = 'point'
-			, position = position_dodge(0.9)
-			, shape = 5
-			, size = 3
-			, colour = 'black'
-			)+
-		coord_flip(
-			)+
-		scale_fill_manual(
-			values = colours
-			)+
-		scale_colour_manual(
-			values = colours
-			)+
-		scale_y_continuous(
-			limits = limits.y
-			, breaks = breaks.y
-			)+
-		theme(
-			text = element_text(
-				family='roboto light'
-				, size = 12
-				, colour = 'black'
-				)
-			, legend.position = 'none'
-			, panel.grid.minor = element_blank()
-			, panel.grid.major.x = element_line(
-				colour = 'grey'
-				, linewidth = 0.25
-				)
-			, panel.grid.major.y = element_blank()
-			, panel.background = element_blank()
-			, plot.background = element_blank()
-			, plot.margin = unit(
-				c(0, 0, 0, 0)
-				, "mm"
-				)
-			, title = element_blank()
-			, axis.text.y = element_blank()
-			, axis.title.x = element_blank()
-			, axis.text.x = element_text(
-				colour = 'black'
-				, size = 12
-				)
-			, axis.title.y = element_blank()
-			, axis.ticks = element_blank()
+	colours.supp <- c(
+		'dldir_fs' = '#b868aa'
+		, 'dliso_fs' = '#7a5bac'
+		, 'dlsyn_fs' = '#d17ca0'
 		)
-	fname.violin <- paste0(
+	fname.body <- paste0(
 		'output/violin-'
 		, names(tab.violin)[i]
-		, '.png'
+		, '_body.png'
 		)
-	ggsave(
-		plot = plot.violin
-		, device = 'png'
-		, height = 3500
-		, width = 2000
-		, units = 'px'
-		, filename = fname.violin
-		, dpi = 300
+	fname.supp <- paste0(
+		'output/violin-'
+		, names(tab.violin)[i]
+		, '_supp.png'
 		)
+	height.body <- 2480
+	height.supp <- 1063
+	for (j in c('body', 'supp')){
+		temp.ind <- get(
+			paste0(
+				'ind.'
+				, j
+				)
+			)
+		temp.colours <- get(
+			paste0(
+				'colours.'
+				, j
+				)
+			)
+		temp.fname <- get(
+			paste0(
+				'fname.'
+				, j
+				)
+			)
+		temp.height <- get(
+			paste0(
+				'height.'
+				, j
+				)
+			)
+		temp.trunc <- temp.data[temp.ind, ]
+		if (names(tab.violin)[i] == 'cortthi'){
+			limits.y <- c(-8, 8)
+			breaks.y <- c(-8, 0, 8)
+		} else {
+			limits.y <- c(-4, 4)
+			breaks.y <- c(-4, 0, 4)
+		}
+		plot.violin <- ggplot(
+			temp.trunc
+			, aes(
+				x = name
+				, y = value
+				)
+			)+
+			geom_violin(
+				trim = F
+				, lwd = rel(0.5)
+				, alpha = 0.8
+				, aes(
+					fill = name
+					, colour = name
+					)
+				)+
+			geom_jitter(
+				shape = 20
+				, width = 0.05
+				, colour = 'grey'
+				, alpha = 0.8
+				)+
+			stat_summary(
+				fun=mean
+				, geom = 'point'
+				, position = position_dodge(0.9)
+				, shape = 5
+				, size = 3
+				, colour = 'black'
+				)+
+			coord_flip(
+				)+
+			scale_fill_manual(
+				values = temp.colours
+				)+
+			scale_colour_manual(
+				values = temp.colours
+				)+
+			scale_y_continuous(
+				limits = limits.y
+				, breaks = breaks.y
+				)+
+			theme(
+				text = element_text(
+					family='roboto light'
+					, size = 10
+					, colour = 'black'
+					)
+				, legend.position = 'none'
+				, panel.grid.minor = element_blank()
+				, panel.grid.major.x = element_line(
+					colour = 'grey'
+					, linewidth = 0.25
+					)
+				, panel.grid.major.y = element_blank()
+				, panel.background = element_blank()
+				, plot.background = element_blank()
+				, plot.margin = unit(
+					c(0, 0, 0, 0)
+					, "mm"
+					)
+				, title = element_blank()
+				, axis.text.y = element_blank()
+				, axis.title.x = element_blank()
+				, axis.text.x = element_text(
+					colour = 'black'
+					, size = 10
+					)
+				, axis.title.y = element_blank()
+				, axis.ticks = element_blank()
+			)
+		ggsave(
+			plot = plot.violin
+			, device = 'png'
+			, height = temp.height
+			, width = 1420
+			, units = 'px'
+			, filename = temp.fname
+			, dpi = 300
+			)
+	}
 }

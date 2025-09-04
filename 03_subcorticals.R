@@ -18,20 +18,20 @@ library('car')
 
 # data import and management####
 # the code directory is set as the study directory for this script
-studydir <- '/Users/coreyratcliffe/Documents/WD_code/rstats/221216_Proj-IS/'
-derivdir <- '/Users/coreyratcliffe/Documents/WD_imaging/221216_Proj-IS/derivatives/'
-setwd(studydir)
+dir.r <- '/Users/coreyratcliffe/Documents/WD_code/rstats/221216_Proj-IS/'
+dir.data <- '/Users/coreyratcliffe/Documents/WD_imaging/221216_Proj-IS/derivatives/'
+setwd(dir.r)
 source("00_functions.r")
 
 # importing the data
 load(
 	paste0(
-		studydir
+		dir.r
 		, 'input/fsl_data.rdata'
 		)
 )
 dir.create(
-	paste0(studydir, 'output/volsigs')
+	paste0(dir.r, 'output/volsigs')
 	, showWarnings = F
 	, recursive = T
 	)

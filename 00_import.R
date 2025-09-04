@@ -8,9 +8,9 @@ cat('\014')
 
 # data import and management####
 # the code directory is set as the study directory for this script
-studydir <- '/Users/coreyratcliffe/Documents/WD_code/rstats/221216_Proj-IS/'
-derivdir <- '/Users/coreyratcliffe/Documents/WD_imaging/221216_Proj-IS/derivatives/'
-setwd(studydir)
+dir.r <- '/Users/coreyratcliffe/Documents/WD_code/rstats/221216_Proj-IS/'
+dir.data <- '/Users/coreyratcliffe/Documents/WD_imaging/221216_Proj-IS/derivatives/'
+setwd(dir.r)
 source('00_functions.r')
 
 # importing the demographics
@@ -54,25 +54,25 @@ tpv_post <- pairwise.t.test(
 	, ptcvars$group
 	, p.adjust.method = 'none'
 	)
-sex_ftest <- chisq_test(
+sex_ftest <- chisq.test(
 	table(
 		ptcvars$group
 		, ptcvars$sex
 		)
 	)
-sex_post_hcdre <- chisq_test(
+sex_post_hcdre <- chisq.test(
 	table(
 		ptcvars$group[ptcvars$group != 'IGE']
 		, ptcvars$sex[ptcvars$group != 'IGE']
 		)
 	)
-sex_post_hcige <- chisq_test(
+sex_post_hcige <- chisq.test(
 	table(
 		ptcvars$group[ptcvars$group != 'DRE']
 		, ptcvars$sex[ptcvars$group != 'DRE']
 		)
 	)
-sex_post_dreige <- chisq_test(
+sex_post_dreige <- chisq.test(
 	table(
 		ptcvars$group[ptcvars$group != 'HC']
 		, ptcvars$sex[ptcvars$group != 'HC']
@@ -165,7 +165,7 @@ for (i in 1:length(tab.fs_raw)){
 		)
 	# column names are reassigned based on the new format
 	colnames(tab.fs_raw[[i]]) <- temp.colnames
-	if (! grepl('dldirect', names(tab.fs_raw))[i]){
+	if (! grepl('dl', names(tab.fs_raw))[i]){
 		if (grepl('aseg', names(tab.fs_raw))[i]){
 		tab.fs_raw[[i]]$Corpus_Callosum <- rowSums(
 			data.frame(
@@ -191,7 +191,15 @@ for (i in 1:length(tab.fs_raw)){
 		}
 	}
 }
-colnames(tab.fs_raw$`dldirect_fs-aseg_volume`)[c(6, 19)] <- c(
+colnames(tab.fs_raw$`dldir_fs-aseg_volume`)[c(6, 19)] <- c(
+	'Left_Thalamus'
+	, 'Right_Thalamus'
+	)
+colnames(tab.fs_raw$`dliso_fs-aseg_volume`)[c(6, 19)] <- c(
+	'Left_Thalamus'
+	, 'Right_Thalamus'
+	)
+colnames(tab.fs_raw$`dlsyn_fs-aseg_volume`)[c(6, 19)] <- c(
 	'Left_Thalamus'
 	, 'Right_Thalamus'
 	)
@@ -207,7 +215,7 @@ opt.roiasegvol <- Reduce(
 			tab.fs_raw$`aniso_fsc-aseg_volume`
 			)
 		, colnames(
-			tab.fs_raw$`dldirect_fs-aseg_volume`
+			tab.fs_raw$`dldir_fs-aseg_volume`
 			)
 		)
 	)
@@ -223,7 +231,7 @@ opt.roicortvol <- Reduce(
 			tab.fs_raw$`aniso_fsc-cort_volume`
 			)
 		, colnames(
-			tab.fs_raw$`dldirect_fs-cort_volume`
+			tab.fs_raw$`dldir_fs-cort_volume`
 			)
 		)
 	)
@@ -239,7 +247,7 @@ opt.roicortthi <- Reduce(
 			tab.fs_raw$`aniso_fsc-cort_thickness`
 			)
 		, colnames(
-			tab.fs_raw$`dldirect_fs-cort_thickness`
+			tab.fs_raw$`dldir_fs-cort_thickness`
 			)
 		)
 	)
@@ -374,8 +382,8 @@ opt.index <- opt.index[
 # temporary dsc computation
 tab.dice_ovl$iso_fs <- tab.dice_vol$iso_fs
 tab.dice_ovl <- tab.dice_ovl[names(tab.dice_vol)]
-for (i in 1:8){
-	tab.dice_dsc[[i]] <- 2 * (tab.dice_ovl[[i]] / (tab.dice_vol[[i]] + tab.dice_vol[[4]]))
+for (i in 1:length(tab.dice_ovl)){
+	tab.dice_dsc[[i]] <- 2 * (tab.dice_ovl[[i]] / (tab.dice_vol[[i]] + tab.dice_vol$iso_fs))
 }
 names(tab.dice_dsc) <- opt.mods
 
@@ -433,7 +441,7 @@ save(
 	, opt.mods
 	, opt.index
 	, file = paste0(
-		studydir
+		dir.r
 		, 'input/dsc_data.rdata'
 		)
 	)
@@ -451,7 +459,7 @@ save(
 	, opt.roicortvol
 	, opt.index
 	, file = paste0(
-		studydir
+		dir.r
 		, 'input/fs_data.rdata'
 		)
 	)
@@ -462,7 +470,7 @@ save(
 	, tab.fsl_sig
 	, tab.fsl_vol
 	, file = paste0(
-		studydir
+		dir.r
 		, 'input/fsl_data.rdata'
 		)
 	)

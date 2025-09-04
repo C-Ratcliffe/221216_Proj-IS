@@ -9,18 +9,20 @@ library('RNifti')
 library('miscTools')
 library('ggplot2')
 library('tidyr')
+# for icc calculation
+library('psych')
 
 # data import and management####
 # the code directory is set as the study directory for this script
-studydir <- '/Users/coreyratcliffe/Documents/WD_code/rstats/221216_Proj-IS/'
-derivdir <- '/Users/coreyratcliffe/Documents/WD_imaging/221216_Proj-IS/derivatives/'
-setwd(studydir)
+dir.r <- '/Users/coreyratcliffe/Documents/WD_code/rstats/221216_Proj-IS/'
+dir.data <- '/Volumes/LaCie/WD_imaging/221216_Proj-IS/derivatives/'
+setwd(dir.r)
 source("00_functions.r")
 
 # dsc####
 tab.wbdsc <- read.delim(
 	paste0(
-		studydir
+		dir.r
 		, 'resources/wholebrain_dice.tsv'
 	)
 	, dec = '.'
@@ -37,7 +39,7 @@ tab.dsc <- colMeans(tab.wbdsc)
 # icc###
 tab.wbicc <- read.delim(
 	paste0(
-		studydir
+		dir.r
 		, 'resources/wholebrain_vols.tsv'
 	)
 	, dec = '.'
@@ -50,10 +52,10 @@ tab.wbicc[] <- lapply(
 	, as.numeric
 	)
 tab.icc <- tab.dsc
-for (i in c(1:4, 6:8)){
+for (i in c(1:6, 8:10, 7)){
 	temp <- data.frame(
 		tab.wbicc[, i]
-		, tab.wbicc[, 5]
+		, tab.wbicc$iso_fs
 		)
 	temp.icc <- ICC(
 		temp
@@ -63,19 +65,26 @@ for (i in c(1:4, 6:8)){
 }
 
 # vol####
-
 tab.wbvol <- tab.wbicc
-tab.vol <- tab.dsc
-for (i in c(1:4, 6:8)){
-	tab.wbvol[, i] <- (tab.wbvol[, i] - mean(tab.wbvol[, 5])) / sd(tab.wbvol[, 5])
+for (i in c(1:6, 8:10, 7)){
+	tab.wbvol[, i] <- (tab.wbvol[, i] - mean(tab.wbvol$iso_fs)) / sd(tab.wbvol$iso_fs)
 }
 tab.vol <- colMeans(tab.wbvol)
-tab.all <- rbind(tab.dsc
+
+# final table creation####
+tab.all <- data.frame(
+	tab.dsc
 	, tab.vol
 	, tab.icc
 	)
-row.names(tab.all) <- c('dsc'
-	, 'icc'
-	,'vol'
+colnames(tab.all) <- c(
+	'dsc'
+	, 'z_diff'
+	,'icc'
 	)
-print(round(t(tab.all), digits = 2))
+print(
+	round(
+		tab.all
+		, digits = 2
+		)
+	)
