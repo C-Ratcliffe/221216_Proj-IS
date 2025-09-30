@@ -25,10 +25,10 @@ deactivate
 studydir=~/Documents/is/
 rawdir=${studydir}rawdata/
 derivdir=${studydir}derivatives/
-rdir=${derivdir}stats/
-rdirfs=${rdir}measurements_fs/
-rdirfsl=${rdir}measurements_fsl/
-rdirdice=${rdir}measurements_dice/
+statsdir=${derivdir}stats/
+statsdirfs=${statsdir}measurements_fs/
+statsdirfsl=${statsdir}measurements_fsl/
+statsdirdice=${statsdir}measurements_dice/
 surfdir=/Applications/Surfice
 
 export FREESURFER_HOME=/usr/local/freesurfer/8.0.0
@@ -51,9 +51,9 @@ mkdir \
 	${derivdir}aniso/ \
 	${derivdir}iso/ \
 	${derivdir}res/ \
-	${rdirfs} \
-	${rdirfsl} \
-	${rdirdice}
+	${statsdirfs} \
+	${statsdirfsl} \
+	${statsdirdice}
 
 for subpath in ${derivdir}iso/*
 do
@@ -133,7 +133,7 @@ done
 
 mkdir \
 	-p \
-	${rdirfs}
+	${statsdirfs}
 
 # Aparcstats2table and Asegstats2table
 
@@ -167,9 +167,9 @@ do
 			--subjects ${derivdir}${imgmod}_${i}/sub* \
 			--meas volume \
 			--delimiter tab \
-			--tablefile ${rdirfs}${imgmod}_${i}-aseg_volume_uncut.tsv
-		cut -f 2-65 -d, ${rdirfs}${imgmod}_${i}-aseg_volume_uncut.tsv > ${rdirfs}${imgmod}_${i}-aseg_volume.tsv
-		rm ${rdirfs}${imgmod}_${i}-aseg_volume_uncut.tsv
+			--tablefile ${statsdirfs}${imgmod}_${i}-aseg_volume_uncut.tsv
+		cut -f 2-65 -d, ${statsdirfs}${imgmod}_${i}-aseg_volume_uncut.tsv > ${statsdirfs}${imgmod}_${i}-aseg_volume.tsv
+		rm ${statsdirfs}${imgmod}_${i}-aseg_volume_uncut.tsv
 		for meas in volume thickness
 		do
 			for hemi in lh rh
@@ -181,28 +181,28 @@ do
 					--hemi $hemi \
 					--measure $meas \
 					--delimiter tab \
-					--tablefile ${rdirfs}${imgmod}_${i}-da_${hemi}_${meas}_uncut.tsv
-				cut -f 2-75 -d, ${rdirfs}${imgmod}_${i}-da_${hemi}_${meas}_uncut.tsv > ${rdirfs}${imgmod}_${i}-da_${hemi}_${meas}.tsv
-				rm ${rdirfs}${imgmod}_${i}-da_${hemi}_${meas}_uncut.tsv
+					--tablefile ${statsdirfs}${imgmod}_${i}-da_${hemi}_${meas}_uncut.tsv
+				cut -f 2-75 -d, ${statsdirfs}${imgmod}_${i}-da_${hemi}_${meas}_uncut.tsv > ${statsdirfs}${imgmod}_${i}-da_${hemi}_${meas}.tsv
+				rm ${statsdirfs}${imgmod}_${i}-da_${hemi}_${meas}_uncut.tsv
 			done
 			paste \
 				-d '\t' \
-				${rdirfs}${imgmod}_${i}-da_*_${meas}.tsv > ${rdirfs}${imgmod}_${i}-cort_${meas}.tsv
-			rm ${rdirfs}${imgmod}_${i}-da_lh_${meas}.tsv ${rdirfs}${imgmod}_${i}-da_rh_${meas}.tsv
+				${statsdirfs}${imgmod}_${i}-da_*_${meas}.tsv > ${statsdirfs}${imgmod}_${i}-cort_${meas}.tsv
+			rm ${statsdirfs}${imgmod}_${i}-da_lh_${meas}.tsv ${statsdirfs}${imgmod}_${i}-da_rh_${meas}.tsv
 		done
 	done
 done
 
 for i in dldir dliso dlsyn
 do
-	awk '(NR == 1) || (FNR > 1)' ${derivdir}${i}/sub*/result-thick.csv > ${rdirfs}${i}_thick.tsv
-	awk '(NR == 1) || (FNR > 1)' ${derivdir}${i}/sub*/result-vol.csv > ${rdirfs}${i}_vol.tsv
-	cut -f 2-32 -d, ${rdirfs}${i}_vol.tsv > ${rdirfs}${i}_fs-aseg_volume.tsv
-	cut -f 33-180 -d, ${rdirfs}${i}_vol.tsv > ${rdirfs}${i}_fs-cort_volume.tsv
-	cut -f 2-149 -d, ${rdirfs}${i}_thick.tsv > ${rdirfs}${i}_fs-cort_thickness.tsv
+	awk '(NR == 1) || (FNR > 1)' ${derivdir}${i}/sub*/result-thick.csv > ${statsdirfs}${i}_thick.tsv
+	awk '(NR == 1) || (FNR > 1)' ${derivdir}${i}/sub*/result-vol.csv > ${statsdirfs}${i}_vol.tsv
+	cut -f 2-32 -d, ${statsdirfs}${i}_vol.tsv > ${statsdirfs}${i}_fs-aseg_volume.tsv
+	cut -f 33-180 -d, ${statsdirfs}${i}_vol.tsv > ${statsdirfs}${i}_fs-cort_volume.tsv
+	cut -f 2-149 -d, ${statsdirfs}${i}_thick.tsv > ${statsdirfs}${i}_fs-cort_thickness.tsv
 	rm \
-		${rdirfs}${i}_vol.tsv \
-		${rdirfs}${i}_thick.tsv
+		${statsdirfs}${i}_vol.tsv \
+		${statsdirfs}${i}_thick.tsv
 done
 
 # Subcortical Surface Shape with FSL
@@ -329,10 +329,10 @@ for imgmod in aniso iso res synth
 		${fsldir}design/volumes/*_sigs.tsv
 	cp \
 		${fsldir}design/volumes/volumes.tsv \
-		${rdirfsl}${imgmod}_volumes.tsv
+		${statsdirfsl}${imgmod}_volumes.tsv
 	cp \
 		${fsldir}design/volumes/significances.tsv \
-		${rdirfsl}${imgmod}_significances.tsv
+		${statsdirfsl}${imgmod}_significances.tsv
 done
 
 # Calculating Dice Coefficients 
@@ -340,28 +340,28 @@ done
 # Preparing the environment - RUN AS A DISCRETE BLOCK
 # Thresholding, binarising, and creating overlap volumes
 
-if [[ ! -e ${rdir}ints.txt ]]
+if [[ ! -e ${statsdir}ints.txt ]]
 then
 	mrdump \
 		${SUBJECTS_DIR}/bert/mri/aparc.a2009s+aseg.mgz \
 		-mask ${SUBJECTS_DIR}/bert/mri/aparc.a2009s+aseg.mgz \
-		${rdir}ints.txt
+		${statsdir}ints.txt
 fi
-if [[ ! -e ${rdir}ints_dl.txt ]]
+if [[ ! -e ${statsdir}ints_dl.txt ]]
 then
 	mrdump \
 		${derivdir}dldir/sub-001/T1w_norm_seg.nii.gz \
 		-mask ${derivdir}dldir/sub-001/T1w_norm_seg.nii.gz \
-		${rdir}ints_dl.txt
+		${statsdir}ints_dl.txt
 fi
-if [[ ! -e ${rdir}ints_all.txt ]]
+if [[ ! -e ${statsdir}ints_all.txt ]]
 then
 	cat \
-		${rdir}ints.txt \
-		${rdir}ints_dl.txt > ${rdir}ints_all.txt
+		${statsdir}ints.txt \
+		${statsdir}ints_dl.txt > ${statsdir}ints_all.txt
 fi
 
-ints=(${(u)$(<${rdir}ints_all.txt)})
+ints=(${(u)$(<${statsdir}ints_all.txt)})
 
 for i in fs fsc
 do
@@ -453,7 +453,7 @@ done
 # Recording the overlap volumes as tsv files, and collating them
 # regional
 
-ints=(${(u)$(<${rdir}ints_dl.txt)})
+ints=(${(u)$(<${statsdir}ints_dl.txt)})
 
 for imgmod in aniso_fs aniso_fsc dldir_fs dliso_fs dlsyn_fs iso_fs iso_fsc res_fs res_fsc synth_fs
 do
@@ -559,7 +559,7 @@ for i in ${derivdir}dice_fs/*.tsv
 do
 	cp \
 		$i \
-		${rdirdice}
+		${statsdirdice}
 done
 
 # Visualising alignment
